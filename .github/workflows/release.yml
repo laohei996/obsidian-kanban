@@ -3,32 +3,130 @@ name: Release Obsidian plugin
 on:
   push:
     tags:
-      - '*'
+      - '[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out release tag
+        uses: actions/checkout@v5
 
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v5
         with:
-          node-version: '18.x'
+          node-version: '24.x'
+
+      - name: Install Yarn
+        run: npm install --global yarn@1.22.22
+
+      - name: Install dependencies
+        run: |
+          yarn --version
+          yarn install --frozen-lockfile
+
+      - name: Validate release metadata
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          const tag = process.env.RELEASE_TAG;
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+          const versions = JSON.parse(fs.readFileSync('versions.json', 'utf8'));
+
+          const fail = (message) => {
+            console.error(message);
+            process.exit(1);
+          };
+
+          if (pkg.version !== tag) {
+            fail(`package.json version ${pkg.version} does not match tag ${tag}`);
+          }
+          if (manifest.version !== tag) {
+            fail(`manifest.json version ${manifest.version} does not match tag ${tag}`);
+          }
+          if (!Object.prototype.hasOwnProperty.call(versions, tag)) {
+            fail(`versions.json has no entry for ${tag}`);
+          }
+          if (versions[tag] !== manifest.minAppVersion) {
+            fail(
+              `versions.json maps ${tag} to ${versions[tag]}, expected ${manifest.minAppVersion}`
+            );
+          }
+          NODE
+
+      - name: Typecheck
+        run: yarn typecheck
 
       - name: Build plugin
-        run: |
-          npm install
-          npm run build
+        run: yarn build
 
-      - name: Create release
+      - name: Verify release assets
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          tag="${GITHUB_REF#refs/tags/}"
+          test -s main.js
+          test -s manifest.json
+          test -s styles.css
+          node -e "const m=require('./manifest.json'); if(m.version !== process.env.RELEASE_TAG) process.exit(1)"
+          shasum -a 256 main.js manifest.json styles.css
+          wc -c main.js manifest.json styles.css
 
-          gh release create "$tag" \
-            --title="$tag" \
-            --notes-file="release-notes.md" \
-            main.js manifest.json styles.css
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
+              --title "$RELEASE_TAG" \
+              --notes-file release-notes.md
+            gh release upload "$RELEASE_TAG" \
+              --clobber \
+              main.js manifest.json styles.css
+          else
+            prerelease=()
+            if [[ "$RELEASE_TAG" == *-beta.* ]]; then
+              prerelease=(--prerelease)
+            fi
+
+            gh release create "$RELEASE_TAG" \
+              --title "$RELEASE_TAG" \
+              --notes-file release-notes.md \
+              "${prerelease[@]}" \
+              main.js manifest.json styles.css
+          fi
+
+      - name: Verify GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          release_json="$(gh release view "$RELEASE_TAG" --json tagName,isPrerelease,assets)"
+          RELEASE_JSON="$release_json" node <<'NODE'
+          const release = JSON.parse(process.env.RELEASE_JSON);
+          const expectedTag = process.env.RELEASE_TAG;
+          const expectedPrerelease = expectedTag.includes('-beta.');
+          const expectedAssets = new Set(['main.js', 'manifest.json', 'styles.css']);
+
+          if (release.tagName !== expectedTag) {
+            throw new Error(`Unexpected release tag: ${release.tagName}`);
+          }
+          if (release.isPrerelease !== expectedPrerelease) {
+            throw new Error(`Unexpected prerelease status: ${release.isPrerelease}`);
+          }
+
+          const assets = new Map(release.assets.map((asset) => [asset.name, asset.size]));
+          for (const name of expectedAssets) {
+            if (!assets.has(name) || assets.get(name) <= 0) {
+              throw new Error(`Missing or empty release asset: ${name}`);
+            }
+          }
+          NODE

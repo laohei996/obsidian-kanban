@@ -1,5 +1,10 @@
 # Obsidian Kanban Plugin
 
+> [!WARNING]
+> This repository currently publishes an unofficial beta build for testing an Outline navigation fix. It retains the `obsidian-kanban` plugin ID and therefore replaces, rather than coexists with, the community Kanban plugin in a vault. Install beta releases only in a disposable test vault through BRAT using `laohei996/obsidian-kanban`.
+>
+> The project remains based on the [community Kanban plugin](https://github.com/obsidian-community/obsidian-kanban), and the beta changes are intended to be proposed upstream.
+
 **The Kanban plugin is looking for new maintainers.** Interested? [Read more here.](https://github.com/mgmeyers/obsidian-kanban/blob/main/MAINTAINERS.md)
 
 ---
