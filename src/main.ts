@@ -347,6 +347,14 @@ export default class KanbanPlugin extends Plugin {
       } as ViewState,
       { focus }
     );
+
+    if (leaf.view instanceof MarkdownView && this.app.workspace.activeLeaf === leaf) {
+      // Obsidian derives workspace.activeEditor from the active MarkdownView,
+      // but the Kanban board overrides it with its internal controller while
+      // open. Clear the stale override so editor commands like move-line-up/down
+      // target the restored MarkdownView again.
+      (this.app.workspace as any).activeEditor = null;
+    }
   }
 
   async setKanbanView(leaf: WorkspaceLeaf) {

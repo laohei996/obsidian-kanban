@@ -5,6 +5,7 @@ import { StateUpdater, useMemo } from 'preact/hooks';
 import { StateManager } from 'src/StateManager';
 import { Path } from 'src/dnd/types';
 import { getEntityFromPath } from 'src/dnd/util/data';
+import { getParentWindow } from 'src/dnd/util/getWindow';
 import {
   InlineField,
   getTaskStatusDone,
@@ -18,6 +19,10 @@ import { Board, DataKey, DateColor, Item, Lane, PageData, TagColor } from './typ
 export const baseClassName = 'kanban-plugin';
 
 export function noop() {}
+
+export function normalizeTag(tag: string) {
+  return tag.replace(/^#/, '');
+}
 
 const classCache = new Map<string, string>();
 export function c(className: string) {
@@ -340,16 +345,53 @@ export function useOnMount(refs: RefObject<HTMLElement>[], cb: () => void, onUnm
   useEffect(() => {
     let complete = 0;
     let unmounted = false;
+    const observers: MutationObserver[] = [];
     const onDone = () => {
       if (unmounted) return;
       if (++complete === refs.length) {
         cb();
       }
     };
-    for (const ref of refs) ref.current?.onNodeInserted(onDone, true);
+
+    for (const ref of refs) {
+      const node = ref.current;
+      if (!node) continue;
+
+      // When the document is hidden, CSS animations are paused and
+      // onNodeInserted callbacks never fire, which leaves drag-and-drop
+      // uninitialized. Watch the DOM directly as a visibility-independent
+      // fallback.
+      let done = false;
+      const fire = () => {
+        if (done || unmounted) return;
+        done = true;
+        onDone();
+      };
+
+      if (node.isConnected) {
+        fire();
+        continue;
+      }
+
+      node.onNodeInserted(fire, true);
+
+      const win = getParentWindow(node);
+      if (win?.document?.body) {
+        const observer = new MutationObserver(() => {
+          if (node.isConnected) {
+            observer.disconnect();
+            fire();
+          }
+        });
+        observer.observe(win.document.body, { childList: true, subtree: true });
+        observers.push(observer);
+      }
+    }
+
     return () => {
       unmounted = true;
-      onUnmount();
+      observers.forEach((observer) => observer.disconnect());
+      onUnmount?.();
     };
   }, []);
 }

@@ -11,7 +11,7 @@ import classcat from 'classcat';
 import moment from 'moment';
 import { useCallback, useContext, useMemo, useRef, useState } from 'preact/hooks';
 import { StateManager } from 'src/StateManager';
-import { c } from 'src/components/helpers';
+import { c, normalizeTag } from 'src/components/helpers';
 import { defaultSort } from 'src/helpers/util';
 import { t } from 'src/lang/helpers';
 import { getDataviewPlugin, lableToName, taskFields } from 'src/parsers/helpers/inlineMetadata';
@@ -245,9 +245,13 @@ export function useTableColumns(boardData: Board, stateManager: StateManager) {
 
                     const tagSortOrder = stateManager.getSetting('tag-sort');
                     const aSortOrder =
-                      tagSortOrder?.findIndex((sort) => tagsA.includes(sort.tag)) ?? -1;
+                      tagSortOrder?.findIndex((sort) =>
+                        tagsA.some((tag) => normalizeTag(tag) === normalizeTag(sort.tag))
+                      ) ?? -1;
                     const bSortOrder =
-                      tagSortOrder?.findIndex((sort) => tagsB.includes(sort.tag)) ?? -1;
+                      tagSortOrder?.findIndex((sort) =>
+                        tagsB.some((tag) => normalizeTag(tag) === normalizeTag(sort.tag))
+                      ) ?? -1;
 
                     if (aSortOrder > -1 && bSortOrder < 0) return -1;
                     if (bSortOrder > -1 && aSortOrder < 0) return 1;
@@ -388,9 +392,13 @@ export function useTableColumns(boardData: Board, stateManager: StateManager) {
                 if (id === 'tags') {
                   const tagSortOrder = stateManager.getSetting('tag-sort');
                   const aSortOrder =
-                    tagSortOrder?.findIndex((sort) => valA.value.includes(sort.tag)) ?? -1;
+                    tagSortOrder?.findIndex((sort) =>
+                      valA.value.some((tag: string) => normalizeTag(tag) === normalizeTag(sort.tag))
+                    ) ?? -1;
                   const bSortOrder =
-                    tagSortOrder?.findIndex((sort) => valB.value.includes(sort.tag)) ?? -1;
+                    tagSortOrder?.findIndex((sort) =>
+                      valB.value.some((tag: string) => normalizeTag(tag) === normalizeTag(sort.tag))
+                    ) ?? -1;
 
                   if (aSortOrder > -1 && bSortOrder < 0) return -1;
                   if (bSortOrder > -1 && aSortOrder < 0) return 1;
