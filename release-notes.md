@@ -1,12 +1,18 @@
-# 🧩 Kanban 2.0.52-beta.2
+# 🧩 Kanban 2.0.52-beta.3
 
 ## 🇨🇳 中文
 
 ### 🛠️ 修复内容
 
-- 在 Kanban 与 Markdown 视图之间切换时，保留并恢复原来的阅读／源码模式（[Issue #666](https://github.com/community-archive/obsidian-kanban/issues/666)）。
-- 从卡片新建笔记前验证配置目录；局部配置无效时回退到有效的全局目录，均无效时使用 Obsidian 默认位置（[Issue #996](https://github.com/community-archive/obsidian-kanban/issues/996)）。
-- 阻止通过新增表单创建仅包含空白字符的卡片或列表标题（[Issue #1203](https://github.com/community-archive/obsidian-kanban/issues/1203)）。
+- 拖入外部链接创建卡片时不再同步打开网页（[Issue #1160](https://github.com/community-archive/obsidian-kanban/issues/1160)）。
+- 从看板切回 Markdown 后恢复“上移／下移一行”等编辑器命令（[Issue #1167](https://github.com/community-archive/obsidian-kanban/issues/1167)）。
+- 折叠列表的竖排标题不再倒置，CJK 与拉丁字符方向正确（[Issue #1204](https://github.com/community-archive/obsidian-kanban/issues/1204)）。
+- “Tag sort order”设置真正生效：卡片标签显示顺序、列表“按标签排序”和表格 Tags 列排序均按配置顺序（[Issue #1159](https://github.com/community-archive/obsidian-kanban/issues/1159)）。
+- 修复窗口隐藏等情况下拖放系统未初始化、列表与卡片无法拖动的问题（[Issue #1162](https://github.com/community-archive/obsidian-kanban/issues/1162)）。
+
+### ℹ️ 元数据说明
+
+自本版本起，插件 manifest 的 `author` 更新为 `laohei996`，`authorUrl` 指向本 Fork 仓库；插件 ID 保持不变。
 
 ### ⚠️ Beta 注意事项
 
@@ -16,9 +22,15 @@
 
 ### 🛠️ Fixed
 
-- Preserve and restore the previous Reading or Source mode when switching between Kanban and Markdown views ([Issue #666](https://github.com/community-archive/obsidian-kanban/issues/666)).
-- Validate the configured note folder before creating a note from a card; fall back to a valid global folder, then Obsidian's default location when needed ([Issue #996](https://github.com/community-archive/obsidian-kanban/issues/996)).
-- Prevent the add forms from creating cards or lists whose titles contain only whitespace ([Issue #1203](https://github.com/community-archive/obsidian-kanban/issues/1203)).
+- Dropping an external link onto the board no longer opens the link at the same time ([Issue #1160](https://github.com/community-archive/obsidian-kanban/issues/1160)).
+- Editor commands such as move-line-up/down work again after switching from a board back to Markdown ([Issue #1167](https://github.com/community-archive/obsidian-kanban/issues/1167)).
+- Collapsed lane titles are no longer rendered upside down; CJK and Latin characters are oriented correctly ([Issue #1204](https://github.com/community-archive/obsidian-kanban/issues/1204)).
+- The "Tag sort order" setting now takes effect: card tag display, "Sort by tags" in the lane menu, and the table Tags column all follow the configured order ([Issue #1159](https://github.com/community-archive/obsidian-kanban/issues/1159)).
+- Drag and drop now initializes correctly even when the window was hidden at board mount, so lanes and cards can be dragged reliably ([Issue #1162](https://github.com/community-archive/obsidian-kanban/issues/1162)).
+
+### ℹ️ Metadata
+
+Starting with this release, the manifest `author` is `laohei996` and `authorUrl` points to this fork repository. The plugin ID is unchanged.
 
 ### ⚠️ Beta notice
 
