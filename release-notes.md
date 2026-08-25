@@ -1,18 +1,12 @@
-# 🧩 Kanban 2.0.52-beta.3
+# 🧩 Kanban 2.0.52-beta.4
 
 ## 🇨🇳 中文
 
 ### 🛠️ 修复内容
 
-- 拖入外部链接创建卡片时不再同步打开网页（[Issue #1160](https://github.com/community-archive/obsidian-kanban/issues/1160)）。
-- 从看板切回 Markdown 后恢复“上移／下移一行”等编辑器命令（[Issue #1167](https://github.com/community-archive/obsidian-kanban/issues/1167)）。
-- 折叠列表的竖排标题不再倒置，CJK 与拉丁字符方向正确（[Issue #1204](https://github.com/community-archive/obsidian-kanban/issues/1204)）。
-- “Tag sort order”设置真正生效：卡片标签显示顺序、列表“按标签排序”和表格 Tags 列排序均按配置顺序（[Issue #1159](https://github.com/community-archive/obsidian-kanban/issues/1159)）。
-- 修复窗口隐藏等情况下拖放系统未初始化、列表与卡片无法拖动的问题（[Issue #1162](https://github.com/community-archive/obsidian-kanban/issues/1162)）。
-
-### ℹ️ 元数据说明
-
-自本版本起，插件 manifest 的 `author` 更新为 `laohei996`，`authorUrl` 指向本 Fork 仓库；插件 ID 保持不变。
+- 修复编辑卡片后离开看板时内部编辑器控制器未释放的问题；“跟随光标下的链接”、移动行等全局编辑器命令会正确作用于当前 Markdown 笔记（[Issue #1132](https://github.com/community-archive/obsidian-kanban/issues/1132)）。
+- 从卡片新建笔记时，日期和时间触发器不再进入文件名或生成的链接；触发器会保留在链接外，普通日期、链接到日记的日期及多行卡片均可继续正确解析（[Issue #1137](https://github.com/community-archive/obsidian-kanban/issues/1137)）。
+- 卡片圆角改用内容容器变量，不再继承移动端输入框的大圆角，修复 iOS／iPadOS 26 上卡片呈药丸形或内容被裁切的问题（[Issue #1183](https://github.com/community-archive/obsidian-kanban/issues/1183)、[Issue #1215](https://github.com/community-archive/obsidian-kanban/issues/1215)）。
 
 ### ⚠️ Beta 注意事项
 
@@ -22,15 +16,9 @@
 
 ### 🛠️ Fixed
 
-- Dropping an external link onto the board no longer opens the link at the same time ([Issue #1160](https://github.com/community-archive/obsidian-kanban/issues/1160)).
-- Editor commands such as move-line-up/down work again after switching from a board back to Markdown ([Issue #1167](https://github.com/community-archive/obsidian-kanban/issues/1167)).
-- Collapsed lane titles are no longer rendered upside down; CJK and Latin characters are oriented correctly ([Issue #1204](https://github.com/community-archive/obsidian-kanban/issues/1204)).
-- The "Tag sort order" setting now takes effect: card tag display, "Sort by tags" in the lane menu, and the table Tags column all follow the configured order ([Issue #1159](https://github.com/community-archive/obsidian-kanban/issues/1159)).
-- Drag and drop now initializes correctly even when the window was hidden at board mount, so lanes and cards can be dragged reliably ([Issue #1162](https://github.com/community-archive/obsidian-kanban/issues/1162)).
-
-### ℹ️ Metadata
-
-Starting with this release, the manifest `author` is `laohei996` and `authorUrl` points to this fork repository. The plugin ID is unchanged.
+- Release stale card-editor controllers when leaving a board, so global editor commands such as Follow link under cursor and move-line commands target the active Markdown note again ([Issue #1132](https://github.com/community-archive/obsidian-kanban/issues/1132)).
+- Strip date and time triggers from note filenames and generated links when creating a note from a card. Triggers remain outside the link, preserving parsing for plain dates, daily-note links, and multiline cards ([Issue #1137](https://github.com/community-archive/obsidian-kanban/issues/1137)).
+- Use the content-container radius for cards instead of the mobile input radius, preventing pill-shaped cards and clipped content on iOS and iPadOS 26 ([Issue #1183](https://github.com/community-archive/obsidian-kanban/issues/1183), [Issue #1215](https://github.com/community-archive/obsidian-kanban/issues/1215)).
 
 ### ⚠️ Beta notice
 
