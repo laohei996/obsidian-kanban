@@ -146,6 +146,11 @@ export function MarkdownEditor({
                 }
 
                 evt.win.setTimeout(() => {
+                  // Skip if the editor was torn down before this deferred
+                  // assignment ran, otherwise a stale controller would be
+                  // re-registered as the workspace editor.
+                  if (view.activeEditor !== this.owner) return;
+
                   this.app.workspace.activeEditor = this.owner;
                   if (Platform.isMobile) {
                     this.app.mobileToolbar.update();
@@ -249,17 +254,24 @@ export function MarkdownEditor({
     return () => {
       if (Platform.isMobile) {
         cm.dom.win.removeEventListener('keyboardDidShow', onShow);
+      }
 
-        if (view.activeEditor === controller) {
-          view.activeEditor = null;
-        }
+      // Release the editor controller overrides on every platform. On desktop
+      // the board's internal controller would otherwise stay registered as the
+      // workspace editor after the card editor is torn down, breaking editor
+      // commands (e.g. follow-link, move-line) in Markdown notes afterwards.
+      if (view.activeEditor === controller) {
+        view.activeEditor = null;
+      }
 
-        if (app.workspace.activeEditor === controller) {
-          app.workspace.activeEditor = null;
+      if (app.workspace.activeEditor === controller) {
+        app.workspace.activeEditor = null;
+        if (Platform.isMobile) {
           (app as any).mobileToolbar.update();
           view.contentEl.removeClass('is-mobile-editing');
         }
       }
+
       view.plugin.removeChild(editor);
       internalRef.current = null;
       if (editorRef) editorRef.current = null;

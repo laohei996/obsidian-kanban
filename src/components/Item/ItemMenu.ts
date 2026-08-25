@@ -55,15 +55,31 @@ export function useItemMenu({
           i.setIcon('lucide-file-plus-2')
             .setTitle(t('New note from card'))
             .onClick(async () => {
-              const prevTitle = item.data.titleRaw.split('\n')[0].trim();
-              const sanitizedTitle = prevTitle
-                .replace(embedRegEx, '$1')
-                .replace(wikilinkRegEx, '$1')
-                .replace(mdLinkRegEx, '$1')
-                .replace(tagRegEx, '$1')
-                .replace(illegalCharsRegEx, ' ')
-                .trim()
-                .replace(condenceWhiteSpaceRE, ' ');
+              const titleRaw = item.data.titleRaw;
+              const firstLineEnd = titleRaw.search(/\r?\n/);
+              const firstLine = firstLineEnd === -1 ? titleRaw : titleRaw.slice(0, firstLineEnd);
+              const prevTitle = firstLine.trim();
+              const dateTrigger = stateManager.getSetting('date-trigger') as string;
+              const timeTrigger = stateManager.getSetting('time-trigger') as string;
+              const dateContentMatch =
+                '(?:{[^}]+}|\\[[^\\]]+\\]\\([^)]+\\)|\\[\\[[^\\]]+\\]\\])';
+              const noteTriggerRegEx = new RegExp(
+                `(^|\\s)(?:${escapeRegExpStr(dateTrigger)}${dateContentMatch}|${escapeRegExpStr(
+                  timeTrigger
+                )}{[^}]+})`,
+                'g'
+              );
+
+              const sanitizedTitle =
+                prevTitle
+                  .replace(noteTriggerRegEx, '$1')
+                  .replace(embedRegEx, '$1')
+                  .replace(wikilinkRegEx, '$1')
+                  .replace(mdLinkRegEx, '$1')
+                  .replace(tagRegEx, '$1')
+                  .replace(illegalCharsRegEx, ' ')
+                  .trim()
+                  .replace(condenceWhiteSpaceRE, ' ') || t('Untitled');
 
               const newNoteFolder = stateManager.getSetting('new-note-folder');
               const newNoteTemplatePath = stateManager.getSetting('new-note-template');
@@ -91,10 +107,24 @@ export function useItemMenu({
 
               await applyTemplate(stateManager, newNoteTemplatePath as string | undefined);
 
-              const newTitleRaw = item.data.titleRaw.replace(
-                prevTitle,
-                stateManager.app.fileManager.generateMarkdownLink(newFile, stateManager.file.path)
-              );
+              // Rebuild the card's first line as "link + triggers": inserting
+              // the generated link into the raw title would pull date/time
+              // triggers into the wikilink, which the parser then re-reads as
+              // trigger content and breaks the link. Collect the triggers and
+              // append them after the link instead.
+              const triggers: string[] = [];
+              const collectTriggers = (match: string) => {
+                triggers.push(match.trim());
+                return ' ';
+              };
+              firstLine.replace(noteTriggerRegEx, collectTriggers);
+
+              const newFirstLine = [
+                stateManager.app.fileManager.generateMarkdownLink(newFile, stateManager.file.path),
+                ...triggers,
+              ].join(' ');
+              const remainingTitle = firstLineEnd === -1 ? '' : titleRaw.slice(firstLineEnd);
+              const newTitleRaw = newFirstLine + remainingTitle;
 
               boardModifiers.updateItem(path, stateManager.updateItemContent(item, newTitleRaw));
             });

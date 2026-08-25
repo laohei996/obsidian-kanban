@@ -191,6 +191,14 @@ export class KanbanView extends TextFileView implements HoverParent {
     // Remove draggables from render, as the DOM has already detached
     this.plugin.removeView(this);
     this.emitter.removeAllListeners();
+
+    // The board's card editors override workspace.activeEditor while focused.
+    // Release the override if it still points to one of them, otherwise the
+    // dead controller keeps receiving editor commands after the board closes.
+    if ((this.app.workspace as any).activeEditor === this.activeEditor) {
+      (this.app.workspace as any).activeEditor = null;
+    }
+
     this.activeEditor = null;
     this.actionButtons = {};
   }
