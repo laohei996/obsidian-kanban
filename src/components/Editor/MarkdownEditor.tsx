@@ -243,24 +243,54 @@ export function MarkdownEditor({
       });
     }
 
-    const onShow = () => {
-      const editorEl = elRef.current;
-      if (!editorEl) return;
+    const editorWindow = cm.dom.win;
+    let isMounted = true;
+    let toolbarFrame: number | null = null;
+    let scrollFrame: number | null = null;
 
-      (editorEl.parentElement ?? editorEl).scrollIntoView({
-        block: 'end',
-        inline: 'nearest',
+    const cancelPendingScroll = () => {
+      if (toolbarFrame !== null) {
+        editorWindow.cancelAnimationFrame(toolbarFrame);
+        toolbarFrame = null;
+      }
+      if (scrollFrame !== null) {
+        editorWindow.cancelAnimationFrame(scrollFrame);
+        scrollFrame = null;
+      }
+    };
+
+    const onShow = () => {
+      cancelPendingScroll();
+      toolbarFrame = editorWindow.requestAnimationFrame(() => {
+        toolbarFrame = null;
+        if (!isMounted) return;
+
+        (app as any).mobileToolbar.update();
+        scrollFrame = editorWindow.requestAnimationFrame(() => {
+          scrollFrame = null;
+          if (!isMounted) return;
+
+          const editorEl = elRef.current;
+          if (!editorEl) return;
+
+          (editorEl.parentElement ?? editorEl).scrollIntoView({
+            block: 'end',
+            inline: 'nearest',
+          });
+        });
       });
     };
 
     if (Platform.isMobile) {
-      cm.dom.win.addEventListener('keyboardDidShow', onShow);
+      editorWindow.addEventListener('keyboardDidShow', onShow);
     }
 
     return () => {
+      isMounted = false;
       if (Platform.isMobile) {
-        cm.dom.win.removeEventListener('keyboardDidShow', onShow);
+        editorWindow.removeEventListener('keyboardDidShow', onShow);
       }
+      cancelPendingScroll();
 
       // Release the editor controller overrides on every platform. On desktop
       // the board's internal controller would otherwise stay registered as the
