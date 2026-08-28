@@ -244,7 +244,13 @@ export function MarkdownEditor({
     }
 
     const onShow = () => {
-      elRef.current.scrollIntoView({ block: 'end' });
+      const editorEl = elRef.current;
+      if (!editorEl) return;
+
+      (editorEl.parentElement ?? editorEl).scrollIntoView({
+        block: 'end',
+        inline: 'nearest',
+      });
     };
 
     if (Platform.isMobile) {

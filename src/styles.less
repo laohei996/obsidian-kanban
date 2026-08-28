@@ -633,6 +633,32 @@ button.kanban-plugin__lane-settings-button + button.kanban-plugin__lane-settings
   flex-grow: 1;
 }
 
+.is-mobile .kanban-plugin__item-form {
+  --input-height: auto;
+
+  .markdown-source-view.mod-cm6 {
+    height: auto;
+    min-height: 0;
+  }
+}
+
+.is-phone
+  .mod-root
+  .workspace-leaf-content
+  .view-content
+  .kanban-plugin__item-input-wrapper
+  .markdown-source-view.mod-cm6
+  > .cm-editor
+  > .cm-scroller {
+  padding-block-start: 0;
+}
+
+.is-mobile .view-content.is-mobile-editing .kanban-plugin__item-input-wrapper {
+  scroll-margin-block-end: calc(
+    var(--keyboard-height, 0px) + var(--mobile-toolbar-height, 0px) + var(--size-4-2)
+  );
+}
+
 .kanban-plugin button.kanban-plugin__item-submit-button {
   flex-grow: 0;
   flex-shrink: 1;
