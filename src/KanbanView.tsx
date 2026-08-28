@@ -10,6 +10,7 @@ import {
   ViewStateResult,
   WorkspaceLeaf,
   debounce,
+  getIcon,
 } from 'obsidian';
 
 import { KanbanFormat, KanbanSettings, KanbanViewSettings, SettingsModal } from './Settings';
@@ -26,7 +27,9 @@ import KanbanPlugin from './main';
 import { frontmatterKey } from './parsers/common';
 
 export const kanbanViewType = 'kanban';
-export const kanbanIcon = 'lucide-trello';
+export const kanbanIcon = getIcon('lucide-square-kanban')
+  ? 'lucide-square-kanban'
+  : 'lucide-trello';
 
 export class KanbanView extends TextFileView implements HoverParent {
   plugin: KanbanPlugin;
@@ -400,7 +403,7 @@ export class KanbanView extends TextFileView implements HoverParent {
             .addItem((item) =>
               item
                 .setTitle(t('View as board'))
-                .setIcon('lucide-trello')
+                .setIcon(kanbanIcon)
                 .setChecked(view === 'basic' || view === 'board')
                 .onClick(() => this.setView('board'))
             )

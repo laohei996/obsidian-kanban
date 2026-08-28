@@ -554,7 +554,7 @@ export default class KanbanPlugin extends Plugin {
                 item
                   .setTitle(t('View as board'))
                   .setSection('pane')
-                  .setIcon('lucide-trello')
+                  .setIcon(kanbanIcon)
                   .setChecked(boardView === 'basic' || boardView === 'board')
                   .onClick(() => kanbanView.setView('board'))
               )
