@@ -1,4 +1,5 @@
 import { EditorView } from '@codemirror/view';
+import { Platform } from 'obsidian';
 import { Dispatch, StateUpdater, useContext, useRef } from 'preact/hooks';
 import useOnclickOutside from 'react-cool-onclickoutside';
 import { t } from 'src/lang/helpers';
@@ -21,9 +22,6 @@ export function ItemForm({ addItems, editState, setEditState, hideButton }: Item
   const editorRef = useRef<EditorView>();
 
   const clear = () => setEditState(EditingState.cancel);
-  const clickOutsideRef = useOnclickOutside(clear, {
-    ignoreClass: [c('ignore-click-outside'), 'mobile-toolbar', 'suggestion-container'],
-  });
 
   const createItem = (title: string) => {
     if (!title.trim()) return;
@@ -40,6 +38,19 @@ export function ItemForm({ addItems, editState, setEditState, hideButton }: Item
       });
     }
   };
+
+  const clickOutsideRef = useOnclickOutside(
+    () => {
+      if (Platform.isMobile) {
+        const cm = editorRef.current;
+        if (cm) createItem(cm.state.doc.toString());
+      }
+      clear();
+    },
+    {
+      ignoreClass: [c('ignore-click-outside'), 'mobile-toolbar', 'suggestion-container'],
+    }
+  );
 
   if (isEditing(editState)) {
     return (

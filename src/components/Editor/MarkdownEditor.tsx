@@ -14,6 +14,8 @@ import { EditState, isEditing } from '../types';
 import { datePlugins, stateManagerField } from './dateWidget';
 import { matchDateTrigger, matchTimeTrigger } from './suggest';
 
+const TOUCH_CLICK_SUPPRESSION_MS = 750;
+
 interface MarkdownEditorProps {
   editorRef?: MutableRefObject<EditorView>;
   editState?: EditState;
@@ -110,6 +112,7 @@ export function MarkdownEditor({
   const { view, stateManager } = useContext(KanbanContext);
   const elRef = useRef<HTMLDivElement>();
   const internalRef = useRef<EditorView>();
+  const lastTouchSubmitRef = useRef(Number.NEGATIVE_INFINITY);
 
   useEffect(() => {
     class Editor extends view.plugin.MarkdownEditor {
@@ -317,15 +320,41 @@ export function MarkdownEditor({
   const cls = ['cm-table-widget'];
   if (className) cls.push(className);
 
+  const submit = () => {
+    const cm = internalRef.current;
+    if (!cm) return;
+
+    (view.app.workspace as any).editorSuggest?.close();
+    onSubmit(cm);
+  };
+
   return (
     <>
       <div className={classcat(cls)} ref={elRef}></div>
       {Platform.isMobile && (
         <button
+          type="button"
           onPointerDown={(e) => e.preventDefault()}
-          onClick={() => {
-            (view.app.workspace as any).editorSuggest?.close();
-            onSubmit(internalRef.current);
+          onTouchEnd={(e) => {
+            const touch = e.changedTouches.item(0);
+            if (!touch) return;
+
+            const button = e.currentTarget;
+            const releaseTarget = button.ownerDocument.elementFromPoint(
+              touch.clientX,
+              touch.clientY
+            );
+            if (!releaseTarget || !button.contains(releaseTarget)) return;
+
+            e.preventDefault();
+            lastTouchSubmitRef.current = e.timeStamp;
+            submit();
+          }}
+          onClick={(e) => {
+            const elapsed = e.timeStamp - lastTouchSubmitRef.current;
+            if (e.detail !== 0 && elapsed >= 0 && elapsed <= TOUCH_CLICK_SUPPRESSION_MS) return;
+
+            submit();
           }}
           className={classcat([c('item-submit-button'), 'mod-cta'])}
         >
