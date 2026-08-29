@@ -18,7 +18,7 @@ interface ItemFormProps {
 }
 
 export function ItemForm({ addItems, editState, setEditState, hideButton }: ItemFormProps) {
-  const { stateManager } = useContext(KanbanContext);
+  const { stateManager, view } = useContext(KanbanContext);
   const editorRef = useRef<EditorView>();
 
   const clear = () => setEditState(EditingState.cancel);
@@ -42,8 +42,9 @@ export function ItemForm({ addItems, editState, setEditState, hideButton }: Item
   const clickOutsideRef = useOnclickOutside(
     () => {
       if (Platform.isMobile) {
-        const cm = editorRef.current;
-        if (cm) createItem(cm.state.doc.toString());
+        const title = editorRef.current?.state.doc.toString();
+        (view.app.workspace as any).editorSuggest?.close();
+        if (title !== undefined) createItem(title);
       }
       clear();
     },
