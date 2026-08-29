@@ -163,7 +163,7 @@ export function MarkdownEditor({
                   view.contentEl.removeClass('is-mobile-editing');
                   this.app.mobileToolbar.update();
                 }
-                return true;
+                return false;
               },
             })
           )
@@ -322,7 +322,11 @@ export function MarkdownEditor({
       <div className={classcat(cls)} ref={elRef}></div>
       {Platform.isMobile && (
         <button
-          onClick={() => onSubmit(internalRef.current)}
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={() => {
+            (view.app.workspace as any).editorSuggest?.close();
+            onSubmit(internalRef.current);
+          }}
           className={classcat([c('item-submit-button'), 'mod-cta'])}
         >
           {t('Submit')}
