@@ -95,10 +95,10 @@ function Item({
                       });
                     }}
                   >
-                    <option value="hours">Hours</option>
-                    <option value="days">Days</option>
-                    <option value="weeks">Weeks</option>
-                    <option value="months">Months</option>
+                    <option value="hours">{t('Hours')}</option>
+                    <option value="days">{t('Days')}</option>
+                    <option value="weeks">{t('Weeks')}</option>
+                    <option value="months">{t('Months')}</option>
                   </select>
                   <select
                     className="dropdown"
@@ -110,8 +110,8 @@ function Item({
                       });
                     }}
                   >
-                    <option value="after">{t('After now')}</option>
-                    <option value="before">{t('Before now')}</option>
+                    <option value="after">{t('After')}</option>
+                    <option value="before">{t('Before')}</option>
                   </select>
                 </>
               )}

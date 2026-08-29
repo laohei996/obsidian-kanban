@@ -188,7 +188,7 @@ export const Kanban = ({ view, stateManager }: KanbanProps) => {
   if (boardData.data.errors.length > 0) {
     return (
       <div>
-        <div>Error:</div>
+        <div>{t('Error:')}</div>
         {boardData.data.errors.map((e, i) => {
           return (
             <div key={i}>

@@ -19,13 +19,40 @@ import ro from './locale/ro';
 import ru from './locale/ru';
 import sq from './locale/sq';
 import tr from './locale/tr';
-import uk from './locale/tr';
+import uk from './locale/uk';
 import zhCN from './locale/zh-cn';
 import zhTW from './locale/zh-tw';
 
-const localeMap: { [k: string]: Partial<Lang> } = {
+export type LocaleCode =
+  | 'ar'
+  | 'cs'
+  | 'da'
+  | 'de'
+  | 'en'
+  | 'es'
+  | 'fr'
+  | 'hi'
+  | 'id'
+  | 'it'
+  | 'ja'
+  | 'ko'
+  | 'nl'
+  | 'nn'
+  | 'no'
+  | 'pl'
+  | 'pt'
+  | 'pt-br'
+  | 'ro'
+  | 'ru'
+  | 'sq'
+  | 'tr'
+  | 'uk'
+  | 'zh-cn'
+  | 'zh-tw';
+
+const localeMap: Record<LocaleCode, Partial<Lang>> = {
   ar,
-  cz,
+  cs: cz,
   da,
   de,
   en,
@@ -37,26 +64,84 @@ const localeMap: { [k: string]: Partial<Lang> } = {
   ja,
   ko,
   nl,
+  nn: no,
   no,
   pl,
-  'pt-BR': ptBR,
   pt,
+  'pt-br': ptBR,
   ro,
   ru,
   sq,
   tr,
   uk,
-  'zh-TW': zhTW,
-  zh: zhCN,
+  'zh-cn': zhCN,
+  'zh-tw': zhTW,
 };
 
-const lang = window.localStorage.getItem('language');
-const locale = localeMap[lang || 'en'];
+const localeAliases: Record<string, LocaleCode> = {
+  cz: 'cs',
+  nb: 'no',
+  'pt-br': 'pt-br',
+  zh: 'zh-cn',
+  'zh-cn': 'zh-cn',
+  'zh-hans': 'zh-cn',
+  'zh-sg': 'zh-cn',
+  'zh-hant': 'zh-tw',
+  'zh-hk': 'zh-tw',
+  'zh-mo': 'zh-tw',
+  'zh-tw': 'zh-tw',
+};
 
-export function t(str: keyof typeof en): string {
-  if (!locale) {
-    console.error('Error: kanban locale not found', lang);
+function getMappedLocale(locale: string): LocaleCode | undefined {
+  if (Object.prototype.hasOwnProperty.call(localeAliases, locale)) {
+    return localeAliases[locale];
+  }
+  if (Object.prototype.hasOwnProperty.call(localeMap, locale)) {
+    return locale as LocaleCode;
+  }
+}
+
+export function normalizeLocaleCode(rawLocale?: string | null): LocaleCode {
+  const normalized = (rawLocale || 'en').trim().toLowerCase().replace(/_/g, '-');
+  if (!normalized) return 'en';
+
+  const exact = getMappedLocale(normalized);
+  if (exact) return exact;
+
+  const parts = normalized.split('-');
+  for (let length = parts.length - 1; length > 0; length--) {
+    const mapped = getMappedLocale(parts.slice(0, length).join('-'));
+    if (mapped) return mapped;
   }
 
-  return (locale && locale[str]) || en[str];
+  return 'en';
+}
+
+let cachedRawLocale: string | null | undefined;
+let cachedLocaleCode: LocaleCode | undefined;
+
+export function getCurrentLocaleCode(): LocaleCode {
+  const rawLocale = window.localStorage.getItem('language');
+  if (rawLocale !== cachedRawLocale || !cachedLocaleCode) {
+    cachedRawLocale = rawLocale;
+    cachedLocaleCode = normalizeLocaleCode(rawLocale);
+  }
+
+  return cachedLocaleCode;
+}
+
+export function t(str: keyof typeof en, replacements?: Record<string, string | number>): string {
+  const locale = localeMap[getCurrentLocaleCode()];
+  let translation = locale[str] ?? en[str];
+
+  if (replacements) {
+    Object.entries(replacements).forEach(([key, value]) => {
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      translation = translation.replace(new RegExp(`{{\\s*${escapedKey}\\s*}}`, 'g'), () =>
+        String(value)
+      );
+    });
+  }
+
+  return translation;
 }

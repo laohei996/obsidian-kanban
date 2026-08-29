@@ -130,6 +130,8 @@ const lang: Partial<Lang> = {
   'After now': '이후',
   'Before now': '이전',
   'Between now and': '과의 사이',
+  After: '이후',
+  Before: '이전',
   'Display date colors': '날짜 색상 표시',
   'Set colors for dates displayed in cards based on the rules below.':
     '아래 카드에 표시된 날짜의 색상을 아래의 규칙에 따라 설정하세요.',

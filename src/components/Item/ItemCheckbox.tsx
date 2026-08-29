@@ -2,6 +2,7 @@ import update from 'immutability-helper';
 import { memo, useCallback, useEffect, useState } from 'preact/compat';
 import { StateManager } from 'src/StateManager';
 import { Path } from 'src/dnd/types';
+import { t } from 'src/lang/helpers';
 import { getTaskStatusDone, toggleTask } from 'src/parsers/helpers/inlineMetadata';
 
 import { BoardModifiers } from '../../helpers/boardModifiers';
@@ -114,7 +115,7 @@ export const ItemCheckbox = memo(function ItemCheckbox({
             boardModifiers.archiveItem(path);
           }}
           className={`${c('item-prefix-button')} clickable-icon`}
-          aria-label={isCtrlHoveringCheckbox ? undefined : 'Archive card'}
+          aria-label={isCtrlHoveringCheckbox ? undefined : t('Archive card')}
         >
           <Icon name="sheets-in-box" />
         </a>

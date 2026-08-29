@@ -122,9 +122,9 @@ export function lableToName(label: string) {
     case 'due':
       return t('Due');
     case 'completion':
-      return t('Done');
+      return t('Done date');
     case 'cancelled':
-      return t('Cancelled');
+      return t('Cancelled date');
     case 'repeat':
       return t('Recurrence');
     case 'dependsOn':

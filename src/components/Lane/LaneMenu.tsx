@@ -53,7 +53,7 @@ export function ConfirmAction({ action, cancel, onAction, lane }: ConfirmActionP
           {actionLabels[action].confirm}
         </button>
         <button onClick={cancel} className={c('cancel-action-button')}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </div>
@@ -288,7 +288,7 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
         metadataSortOptions.forEach((k) => {
           menu.addItem((i) => {
             i.setIcon('arrow-down-up')
-              .setTitle(t('Sort by') + ' ' + lableToName(k).toLocaleLowerCase())
+              .setTitle(t('Sort by {{field}}', { field: lableToName(k) }))
               .onClick(() => {
                 const children = lane.children.slice();
                 const desc = lane.data.sorted === k + '-asc' ? true : false;
