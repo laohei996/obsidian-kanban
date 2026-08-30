@@ -1,23 +1,25 @@
-# 🧩 Kanban 2.0.52-beta.5
+# 🧩 Kanban 2.0.52-beta.6
 
 ## 🇨🇳 中文
 
-### 🛠️ 修复内容
+### 🛠️ 修复与改进
 
-- Android 端新建和编辑卡片时，输入框现在会根据内容保持紧凑，不再被 Obsidian 的移动端 Markdown 顶部间距异常撑高；在长列表底部打开软键盘时，编辑器和提交按钮会一起滚动到键盘及移动工具栏上方（[Fork Issue #1](https://github.com/laohei996/obsidian-kanban/issues/1)）。
-- 在新版 Obsidian 中恢复 Kanban 的 Ribbon、View 及菜单图标，优先使用 `lucide-square-kanban`，并保留旧版兼容回退；桌面端和移动端的“View as board”菜单也会统一使用可用的 Kanban 图标（[Issue #1231](https://github.com/community-archive/obsidian-kanban/issues/1231)）。
+- 📱 优化移动端卡片和列表编辑体验，修复键盘遮挡、误触提交及点按外部保存问题。
+- 📅 提升 iOS 日期选择稳定性，修复日期建议偶发卡住、相邻月份选择失败和连续点按失效问题。
+- 🌐 完善简体中文翻译，并新增本地化完整性检查。
 
-### ⚠️ Beta 注意事项
+### ⚠️ Beta 提示
 
-此 Fork 保留 `obsidian-kanban` 插件 ID，以便后续继续向上游贡献。它会原位替换社区版 Kanban，不能在同一 Vault 中同时安装。建议先在测试 Vault 中验证，并通过 BRAT 从 `laohei996/obsidian-kanban` 安装。
+此 Fork 会原位替换社区版 Kanban。请先在测试 Vault 中验证，再通过 BRAT 安装。
 
 ## 🇬🇧 English
 
-### 🛠️ Fixed
+### 🛠️ Fixes and improvements
 
-- Keep Android card editors compact instead of inheriting Obsidian's oversized mobile Markdown top spacing. On long lists, opening the software keyboard now scrolls the editor and Submit button together above the keyboard and mobile toolbar ([Fork Issue #1](https://github.com/laohei996/obsidian-kanban/issues/1)).
-- Restore Kanban Ribbon, View, and menu icons in current Obsidian versions by preferring `lucide-square-kanban` while retaining a compatibility fallback for older versions. Desktop and mobile “View as board” menus now reuse the same available Kanban icon ([Issue #1231](https://github.com/community-archive/obsidian-kanban/issues/1231)).
+- 📱 Improve mobile card and list editing, including keyboard visibility, accidental submissions, and outside-tap saving.
+- 📅 Improve iOS date selection and fix occasional stuck suggestions, adjacent-month selection failures, and missed follow-up taps.
+- 🌐 Complete the Simplified Chinese translation and add localization consistency checks.
 
 ### ⚠️ Beta notice
 
-This fork retains the `obsidian-kanban` plugin ID so the fixes can continue to be proposed upstream. It replaces the community Kanban plugin in place and cannot be installed beside it in the same vault. Test this release in a disposable vault first, then install it through BRAT from `laohei996/obsidian-kanban`.
+This fork replaces the community Kanban plugin in place. Test it in a disposable vault before installing through BRAT.
