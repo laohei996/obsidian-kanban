@@ -15,6 +15,20 @@ import { datePlugins, stateManagerField } from './dateWidget';
 import { matchDateTrigger, matchTimeTrigger } from './suggest';
 
 const TOUCH_CLICK_SUPPRESSION_MS = 750;
+const TOUCH_MOVE_TOLERANCE_PX = 10;
+
+function getTouch(touches: TouchList, identifier: number) {
+  for (let i = 0; i < touches.length; i++) {
+    const touch = touches.item(i);
+    if (touch?.identifier === identifier) return touch;
+  }
+}
+
+function hasTouchMoved(touch: Touch, startX: number, startY: number) {
+  return (
+    Math.hypot(touch.clientX - startX, touch.clientY - startY) > TOUCH_MOVE_TOLERANCE_PX
+  );
+}
 
 interface MarkdownEditorProps {
   editorRef?: MutableRefObject<EditorView>;
@@ -113,6 +127,12 @@ export function MarkdownEditor({
   const elRef = useRef<HTMLDivElement>();
   const internalRef = useRef<EditorView>();
   const lastTouchSubmitRef = useRef(Number.NEGATIVE_INFINITY);
+  const submitTouchRef = useRef<{
+    identifier: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  }>();
 
   useEffect(() => {
     class Editor extends view.plugin.MarkdownEditor {
@@ -335,9 +355,60 @@ export function MarkdownEditor({
         <button
           type="button"
           onPointerDown={(e) => e.preventDefault()}
+          onTouchStart={(e) => {
+            if (e.touches.length !== 1) {
+              submitTouchRef.current = undefined;
+              return;
+            }
+
+            const touch = e.touches.item(0);
+            if (!touch) {
+              submitTouchRef.current = undefined;
+              return;
+            }
+
+            submitTouchRef.current = {
+              identifier: touch.identifier,
+              startX: touch.clientX,
+              startY: touch.clientY,
+              moved: false,
+            };
+          }}
+          onTouchMove={(e) => {
+            const selection = submitTouchRef.current;
+            if (!selection) return;
+            if (e.touches.length !== 1) {
+              submitTouchRef.current = undefined;
+              return;
+            }
+
+            const touch = getTouch(e.touches, selection.identifier);
+            if (!touch) {
+              submitTouchRef.current = undefined;
+              return;
+            }
+
+            if (hasTouchMoved(touch, selection.startX, selection.startY)) {
+              selection.moved = true;
+            }
+          }}
+          onTouchCancel={() => {
+            submitTouchRef.current = undefined;
+          }}
           onTouchEnd={(e) => {
-            const touch = e.changedTouches.item(0);
-            if (!touch) return;
+            const selection = submitTouchRef.current;
+            submitTouchRef.current = undefined;
+            if (
+              !selection ||
+              selection.moved ||
+              e.touches.length !== 0 ||
+              e.changedTouches.length !== 1
+            ) {
+              return;
+            }
+
+            const touch = getTouch(e.changedTouches, selection.identifier);
+            if (!touch || hasTouchMoved(touch, selection.startX, selection.startY)) return;
 
             const button = e.currentTarget;
             const releaseTarget = button.ownerDocument.elementFromPoint(
