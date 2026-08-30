@@ -41,11 +41,9 @@ export function ItemForm({ addItems, editState, setEditState, hideButton }: Item
 
   const clickOutsideRef = useOnclickOutside(
     () => {
-      if (Platform.isMobile) {
-        const title = editorRef.current?.state.doc.toString();
-        (view.app.workspace as any).editorSuggest?.close();
-        if (title !== undefined) createItem(title);
-      }
+      const title = Platform.isMobile ? editorRef.current?.state.doc.toString() : undefined;
+      (view.app.workspace as any).editorSuggest?.close();
+      if (title !== undefined) createItem(title);
       clear();
     },
     {
