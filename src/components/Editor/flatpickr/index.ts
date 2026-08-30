@@ -2304,14 +2304,14 @@ function FlatpickrInstance(element: HTMLElement, instanceConfig?: Options): Inst
 
     updateValue();
 
-    // maintain focus
-    if (!shouldChangeMonth && self.config.mode !== 'range' && self.config.showMonths === 1)
-      focusOnDayElem(target);
-    else if (self.selectedDateElem !== undefined && self.hourElement === undefined) {
-      self.selectedDateElem && self.selectedDateElem.focus();
-    }
+    if (!shouldChangeMonth) {
+      if (self.config.mode !== 'range' && self.config.showMonths === 1) focusOnDayElem(target);
+      else if (self.selectedDateElem !== undefined && self.hourElement === undefined) {
+        self.selectedDateElem && self.selectedDateElem.focus();
+      }
 
-    if (self.hourElement !== undefined) self.hourElement !== undefined && self.hourElement.focus();
+      if (self.hourElement !== undefined) self.hourElement.focus();
+    }
 
     if (self.config.closeOnSelect) {
       const single = self.config.mode === 'single' && !self.config.enableTime;
@@ -2323,6 +2323,14 @@ function FlatpickrInstance(element: HTMLElement, instanceConfig?: Options): Inst
       }
     }
     triggerChange();
+
+    if (shouldChangeMonth && self.config !== undefined) {
+      if (self.selectedDateElem !== undefined && self.hourElement === undefined) {
+        self.selectedDateElem.focus();
+      }
+
+      if (self.hourElement !== undefined) self.hourElement.focus();
+    }
   }
 
   const CALLBACKS: { [k in keyof Options]: Function[] } = {
