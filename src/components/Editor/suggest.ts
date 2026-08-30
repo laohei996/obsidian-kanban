@@ -82,13 +82,16 @@ export class DateSuggest extends EditorSuggest<[]> {
     this.scope.register([], 'ArrowUp', () => move('up'));
 
     this.scope.register([], 'Enter', () => {
-      const selectedDates = this.datepicker.selectedDates;
+      const selectedDates = this.datepicker?.selectedDates ?? [];
       const ctx = this.context;
+      const stateManager = this.stateManager;
 
-      if (selectedDates.length) {
-        applyDate(ctx, this.stateManager, selectedDates[0]);
-      } else {
-        applyDate(ctx, this.stateManager, new Date());
+      if (ctx && stateManager) {
+        if (selectedDates.length) {
+          applyDate(ctx, stateManager, selectedDates[0]);
+        } else {
+          applyDate(ctx, stateManager, new Date());
+        }
       }
 
       this.close();
@@ -110,18 +113,41 @@ export class DateSuggest extends EditorSuggest<[]> {
   selectSuggestion(): void {}
 
   datepicker: Instance = null;
+  datepickerPending = false;
+  pickerRequestId = 0;
+
   showSuggestions() {
     const { datepicker, suggestEl, context, stateManager } = this;
-    if (!datepicker && stateManager) {
-      suggestEl.empty();
-      suggestEl.addClasses([c('date-picker'), c('ignore-click-outside')]);
-      constructDatePicker(context, stateManager, suggestEl, (picker) => {
+    if (datepicker || this.datepickerPending || !context || !stateManager) return;
+
+    const requestId = ++this.pickerRequestId;
+    this.datepickerPending = true;
+    suggestEl.empty();
+    suggestEl.addClasses([c('date-picker'), c('ignore-click-outside')]);
+    constructDatePicker(
+      context,
+      stateManager,
+      suggestEl,
+      (picker) => {
+        if (requestId !== this.pickerRequestId || this.context !== context) {
+          picker.destroy();
+          return;
+        }
+
+        this.datepickerPending = false;
         this.datepicker = picker;
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         this.updatePosition(true);
-      });
-    }
+      },
+      () => {
+        suggestEl.win.setTimeout(() => {
+          if (requestId === this.pickerRequestId && this.context === context) {
+            this.close();
+          }
+        });
+      }
+    );
   }
 
   onTrigger(cursor: EditorPosition, editor: Editor, file: TFile): EditorSuggestTriggerInfo | null {
@@ -140,13 +166,15 @@ export class DateSuggest extends EditorSuggest<[]> {
   }
 
   close() {
-    super.close();
+    this.pickerRequestId++;
+    this.datepickerPending = false;
 
-    if (this.datepicker) {
-      this.datepicker.destroy();
-      this.datepicker = null;
-      this.suggestEl.empty();
-    }
+    const datepicker = this.datepicker;
+    this.datepicker = null;
+
+    super.close();
+    datepicker?.destroy();
+    this.suggestEl.empty();
   }
 }
 

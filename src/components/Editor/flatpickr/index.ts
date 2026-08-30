@@ -41,6 +41,9 @@ import {
 import { monthToStr, tokenRegex } from './utils/formatting';
 
 const DEBOUNCED_CHANGE_MS = 300;
+const TOUCH_MOVE_TOLERANCE_PX = 10;
+const TOUCH_CLICK_SUPPRESSION_MS = 750;
+const TOUCH_CLICK_POSITION_TOLERANCE_PX = 25;
 
 function FlatpickrInstance(element: HTMLElement, instanceConfig?: Options): Instance {
   const win = element.win || window;
@@ -51,6 +54,16 @@ function FlatpickrInstance(element: HTMLElement, instanceConfig?: Options): Inst
     } as ParsedOptions,
     l10n: English,
   } as Instance;
+  let touchSelection:
+    | {
+        identifier: number;
+        day: DayElement;
+        startX: number;
+        startY: number;
+        moved: boolean;
+      }
+    | undefined;
+
   self.parseDate = createDateParser({ config: self.config, l10n: self.l10n });
 
   self._handlers = [];
@@ -417,6 +430,10 @@ function FlatpickrInstance(element: HTMLElement, instanceConfig?: Options): Inst
 
       bind(self.monthNav, ['keyup', 'increment'], onYearInput);
       bind(self.daysContainer, 'click', selectDate);
+      bind(self.daysContainer, 'touchstart', onDayTouchStart, { passive: true });
+      bind(self.daysContainer, 'touchmove', onDayTouchMove, { passive: true });
+      bind(self.daysContainer, 'touchend', onDayTouchEnd, { passive: false });
+      bind(self.daysContainer, 'touchcancel', clearDayTouchSelection, { passive: true });
     }
 
     if (
@@ -2095,22 +2112,146 @@ function FlatpickrInstance(element: HTMLElement, instanceConfig?: Options): Inst
     }
   }
 
+  function isSelectableDay(day: Element) {
+    return (
+      day.classList &&
+      day.classList.contains('flatpickr-day') &&
+      !day.classList.contains('flatpickr-disabled') &&
+      !day.classList.contains('notAllowed')
+    );
+  }
+
+  function getSelectableDay(target: EventTarget | null): DayElement | undefined {
+    if (!target || !(target as Element).classList) return;
+
+    const day = findParent(target as Element, isSelectableDay);
+    if (!day || !self.daysContainer?.contains(day)) return;
+
+    return day as DayElement;
+  }
+
+  function getTouch(touches: TouchList, identifier: number): Touch | undefined {
+    for (let i = 0; i < touches.length; i++) {
+      const touch = touches.item(i);
+      if (touch?.identifier === identifier) return touch;
+    }
+  }
+
+  function hasTouchMoved(touch: Touch, startX: number, startY: number) {
+    return (
+      Math.hypot(touch.clientX - startX, touch.clientY - startY) > TOUCH_MOVE_TOLERANCE_PX
+    );
+  }
+
+  function clearDayTouchSelection() {
+    touchSelection = undefined;
+  }
+
+  function onDayTouchStart(e: TouchEvent) {
+    if (e.touches.length !== 1) {
+      clearDayTouchSelection();
+      return;
+    }
+
+    const touch = e.touches.item(0);
+    const day = getSelectableDay(getEventTarget(e));
+    if (!touch || !day) {
+      clearDayTouchSelection();
+      return;
+    }
+
+    touchSelection = {
+      identifier: touch.identifier,
+      day,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      moved: false,
+    };
+  }
+
+  function onDayTouchMove(e: TouchEvent) {
+    if (!touchSelection) return;
+    if (e.touches.length !== 1) {
+      clearDayTouchSelection();
+      return;
+    }
+
+    const touch = getTouch(e.touches, touchSelection.identifier);
+    if (!touch) {
+      clearDayTouchSelection();
+      return;
+    }
+
+    if (hasTouchMoved(touch, touchSelection.startX, touchSelection.startY)) {
+      touchSelection.moved = true;
+    }
+  }
+
+  function suppressCompatibilityClick(day: DayElement, touch: Touch, touchEndTime: number) {
+    const doc = day.ownerDocument;
+    let timeoutId: number;
+
+    const remove = () => {
+      doc.removeEventListener('click', onClick, true);
+      win.clearTimeout(timeoutId);
+    };
+
+    const onClick = (e: MouseEvent) => {
+      const elapsed = e.timeStamp - touchEndTime;
+      if (elapsed < 0 || elapsed > TOUCH_CLICK_SUPPRESSION_MS || e.detail === 0) return;
+
+      const sourceCapabilities = (e as MouseEvent & {
+        sourceCapabilities?: { firesTouchEvents?: boolean };
+      }).sourceCapabilities;
+      if (sourceCapabilities?.firesTouchEvents === false) return;
+
+      const isNearTouch =
+        Math.hypot(e.clientX - touch.clientX, e.clientY - touch.clientY) <=
+        TOUCH_CLICK_POSITION_TOLERANCE_PX;
+      const isSameTarget = e.composedPath().includes(day);
+      if (!isNearTouch || (!isSameTarget && day.isConnected)) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      remove();
+    };
+
+    doc.addEventListener('click', onClick, true);
+    timeoutId = win.setTimeout(remove, TOUCH_CLICK_SUPPRESSION_MS);
+  }
+
+  function onDayTouchEnd(e: TouchEvent) {
+    const selection = touchSelection;
+    clearDayTouchSelection();
+    if (!selection || selection.moved || e.touches.length !== 0) return;
+
+    const touch = getTouch(e.changedTouches, selection.identifier);
+    if (!touch || hasTouchMoved(touch, selection.startX, selection.startY)) return;
+
+    const releaseTarget = selection.day.ownerDocument.elementFromPoint(touch.clientX, touch.clientY);
+    const releaseDay = getSelectableDay(releaseTarget);
+    if (releaseDay !== selection.day || releaseDay.dateObj.getTime() !== selection.day.dateObj.getTime()) {
+      return;
+    }
+
+    suppressCompatibilityClick(selection.day, touch, e.timeStamp);
+    e.preventDefault();
+    e.stopPropagation();
+    selectDay(selection.day);
+  }
+
   function selectDate(e: MouseEvent | KeyboardEvent) {
     e.preventDefault();
     e.stopPropagation();
 
-    const isSelectable = (day: Element) =>
-      day.classList &&
-      day.classList.contains('flatpickr-day') &&
-      !day.classList.contains('flatpickr-disabled') &&
-      !day.classList.contains('notAllowed');
+    const target = getSelectableDay(getEventTarget(e));
+    if (!target) return;
 
-    const t = findParent(getEventTarget(e) as Element, isSelectable);
+    selectDay(target);
+  }
 
-    if (t === undefined) return;
-
-    const target = t as DayElement;
-
+  function selectDay(target: DayElement) {
     const selectedDate = (self.latestSelectedDateObj = new Date(target.dateObj.getTime()));
 
     const shouldChangeMonth =
@@ -2457,12 +2598,15 @@ function FlatpickrInstance(element: HTMLElement, instanceConfig?: Options): Inst
     const hooks = self.config[event];
 
     if (hooks !== undefined && hooks.length > 0) {
-      for (let i = 0; hooks[i] && i < hooks.length; i++)
+      for (let i = 0; hooks[i] && i < hooks.length; i++) {
         hooks[i](self.selectedDates, self.input.value, self, data);
+        if (self.config === undefined) return;
+      }
     }
 
-    if (event === 'onChange') {
+    if (event === 'onChange' && self.config !== undefined) {
       self.input.dispatchEvent(createEvent('change'));
+      if (self.config === undefined) return;
 
       // many front-end frameworks bind to the input event
       self.input.dispatchEvent(createEvent('input'));

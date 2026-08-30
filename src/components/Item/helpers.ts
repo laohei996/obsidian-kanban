@@ -55,6 +55,7 @@ export function constructDatePicker(
             locale: getDefaultLocale(stateManager),
             defaultDate: date,
             inline: true,
+            closeOnSelect: false,
             onChange: (dates) => {
               onChange(dates);
               selfDestruct();
