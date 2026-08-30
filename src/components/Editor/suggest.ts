@@ -129,8 +129,15 @@ export class DateSuggest extends EditorSuggest<[]> {
       stateManager,
       suggestEl,
       (picker) => {
-        if (requestId !== this.pickerRequestId || this.context !== context) {
+        const isCurrentRequest = requestId === this.pickerRequestId;
+        if (!isCurrentRequest || this.context !== context) {
           picker.destroy();
+
+          if (isCurrentRequest) {
+            this.datepickerPending = false;
+            this.showSuggestions();
+          }
+
           return;
         }
 
