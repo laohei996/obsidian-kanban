@@ -2189,10 +2189,10 @@ function FlatpickrInstance(element: HTMLElement, instanceConfig?: Options): Inst
 
   function suppressCompatibilityClick(day: DayElement, touch: Touch, touchEndTime: number) {
     const doc = day.ownerDocument;
-    let timeoutId: number;
 
     const remove = () => {
       doc.removeEventListener('click', onClick, true);
+      doc.removeEventListener('touchstart', remove, true);
       win.clearTimeout(timeoutId);
     };
 
@@ -2218,7 +2218,12 @@ function FlatpickrInstance(element: HTMLElement, instanceConfig?: Options): Inst
     };
 
     doc.addEventListener('click', onClick, true);
-    timeoutId = win.setTimeout(remove, TOUCH_CLICK_SUPPRESSION_MS);
+    doc.addEventListener('touchstart', remove, {
+      capture: true,
+      once: true,
+      passive: true,
+    });
+    const timeoutId = win.setTimeout(remove, TOUCH_CLICK_SUPPRESSION_MS);
   }
 
   function onDayTouchEnd(e: TouchEvent) {
