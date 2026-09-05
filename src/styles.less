@@ -664,9 +664,8 @@ button.kanban-plugin__lane-settings-button + button.kanban-plugin__lane-settings
 .is-mobile .view-content.is-mobile-editing {
   .kanban-plugin__item-input-wrapper,
   .kanban-plugin__lane-title:has(.kanban-plugin__lane-input) {
-    scroll-margin-block-end: calc(
-      var(--keyboard-height, 0px) + var(--mobile-toolbar-height, 0px) + var(--size-4-2)
-    );
+    // Obsidian's mobile layout already reserves space for the keyboard.
+    scroll-margin-block-end: calc(var(--mobile-toolbar-height, 0px) + var(--size-4-2));
   }
 }
 
