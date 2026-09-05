@@ -30,17 +30,28 @@ export function constructDatePicker(
   ctx: EditorSuggestContext,
   stateManager: StateManager,
   div: HTMLElement,
-  cb: (picker: Instance) => void
+  onConstructed: (picker: Instance) => void,
+  onDateApplied: () => void
 ) {
+  let didApplyDate = false;
+
   div.createEl('input', { type: 'text' }, (input) => {
     div.win.setTimeout(() =>
-      cb(
+      onConstructed(
         flatpickr(input, {
           win: input.win,
           now: new Date(),
           inline: true,
+          closeOnSelect: false,
           locale: getDefaultLocale(stateManager),
-          onChange: (dates) => applyDate(ctx, stateManager, dates[0]),
+          onChange: (dates) => {
+            const date = dates[0];
+            if (didApplyDate || !date || Number.isNaN(date.getTime())) return;
+
+            didApplyDate = true;
+            applyDate(ctx, stateManager, date);
+            onDateApplied();
+          },
         })
       )
     );

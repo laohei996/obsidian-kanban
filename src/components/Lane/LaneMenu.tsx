@@ -8,7 +8,7 @@ import { lableToName } from 'src/parsers/helpers/inlineMetadata';
 
 import { anyToString } from '../Item/MetadataTable';
 import { KanbanContext } from '../context';
-import { c, generateInstanceId } from '../helpers';
+import { c, generateInstanceId, normalizeTag } from '../helpers';
 import { EditState, Lane, LaneSort, LaneTemplate } from '../types';
 
 export type LaneAction = 'delete' | 'archive' | 'archive-items' | null;
@@ -53,7 +53,7 @@ export function ConfirmAction({ action, cancel, onAction, lane }: ConfirmActionP
           {actionLabels[action].confirm}
         </button>
         <button onClick={cancel} className={c('cancel-action-button')}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </div>
@@ -248,9 +248,13 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
                 if (!tagsB?.length) return -1;
 
                 const aSortOrder =
-                  tagSortOrder?.findIndex((sort) => tagsA.includes(sort.tag)) ?? -1;
+                  tagSortOrder?.findIndex((sort) =>
+                    tagsA.some((tag) => normalizeTag(tag) === normalizeTag(sort.tag))
+                  ) ?? -1;
                 const bSortOrder =
-                  tagSortOrder?.findIndex((sort) => tagsB.includes(sort.tag)) ?? -1;
+                  tagSortOrder?.findIndex((sort) =>
+                    tagsB.some((tag) => normalizeTag(tag) === normalizeTag(sort.tag))
+                  ) ?? -1;
 
                 if (aSortOrder > -1 && bSortOrder < 0) return desc ? 1 : -1;
                 if (bSortOrder > -1 && aSortOrder < 0) return desc ? -1 : 1;
@@ -284,7 +288,7 @@ export function useSettingsMenu({ setEditState, path, lane }: UseSettingsMenuPar
         metadataSortOptions.forEach((k) => {
           menu.addItem((i) => {
             i.setIcon('arrow-down-up')
-              .setTitle(t('Sort by') + ' ' + lableToName(k).toLocaleLowerCase())
+              .setTitle(t('Sort by {{field}}', { field: lableToName(k) }))
               .onClick(() => {
                 const children = lane.children.slice();
                 const desc = lane.data.sorted === k + '-asc' ? true : false;

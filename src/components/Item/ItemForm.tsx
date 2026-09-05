@@ -1,4 +1,5 @@
 import { EditorView } from '@codemirror/view';
+import { Platform } from 'obsidian';
 import { Dispatch, StateUpdater, useContext, useRef } from 'preact/hooks';
 import useOnclickOutside from 'react-cool-onclickoutside';
 import { t } from 'src/lang/helpers';
@@ -17,13 +18,10 @@ interface ItemFormProps {
 }
 
 export function ItemForm({ addItems, editState, setEditState, hideButton }: ItemFormProps) {
-  const { stateManager } = useContext(KanbanContext);
+  const { stateManager, view } = useContext(KanbanContext);
   const editorRef = useRef<EditorView>();
 
   const clear = () => setEditState(EditingState.cancel);
-  const clickOutsideRef = useOnclickOutside(clear, {
-    ignoreClass: [c('ignore-click-outside'), 'mobile-toolbar', 'suggestion-container'],
-  });
 
   const createItem = (title: string) => {
     if (!title.trim()) return;
@@ -40,6 +38,18 @@ export function ItemForm({ addItems, editState, setEditState, hideButton }: Item
       });
     }
   };
+
+  const clickOutsideRef = useOnclickOutside(
+    () => {
+      const title = Platform.isMobile ? editorRef.current?.state.doc.toString() : undefined;
+      (view.app.workspace as any).editorSuggest?.close();
+      if (title !== undefined) createItem(title);
+      clear();
+    },
+    {
+      ignoreClass: [c('ignore-click-outside'), 'mobile-toolbar', 'suggestion-container'],
+    }
+  );
 
   if (isEditing(editState)) {
     return (

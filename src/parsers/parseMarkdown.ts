@@ -5,6 +5,7 @@ import { parseYaml } from 'obsidian';
 import { KanbanSettings, settingKeyLookup } from 'src/Settings';
 import { StateManager } from 'src/StateManager';
 import { getNormalizedPath } from 'src/helpers/renderMarkdown';
+import { t } from 'src/lang/helpers';
 
 import { frontmatterKey, getLinkedPageMetadata } from './common';
 import { blockidExtension, blockidFromMarkdown } from './extensions/blockid';
@@ -24,7 +25,7 @@ function extractFrontmatter(md: string) {
         openDashCount++;
         continue;
       } else {
-        throw new Error('Error parsing frontmatter');
+        throw new Error(t('Invalid Kanban file: problems parsing frontmatter'));
       }
     }
 

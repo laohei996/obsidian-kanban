@@ -23,6 +23,7 @@ const en = {
   'Open board settings': 'Open board settings',
   'Archive completed cards': 'Archive completed cards',
   'Something went wrong': 'Something went wrong',
+  'Error:': 'Error:',
   'You may wish to open as markdown and inspect or edit the file.':
     'You may wish to open as markdown and inspect or edit the file.',
   'Are you sure you want to archive all completed cards on this board?':
@@ -161,10 +162,16 @@ const en = {
   'After now': 'After now',
   'Before now': 'Before now',
   'Between now and': 'Between now and',
+  After: 'After',
+  Before: 'Before',
   'Display date colors': 'Display date colors',
   'Set colors for dates displayed in cards based on the rules below.':
     'Set colors for dates displayed in cards based on the rules below.',
   'Add date color': 'Add date color',
+  Hours: 'Hours',
+  Days: 'Days',
+  Weeks: 'Weeks',
+  Months: 'Months',
 
   // MetadataSettings.tsx
   'Metadata key': 'Metadata key',
@@ -194,6 +201,8 @@ const en = {
   Scheduled: 'Scheduled',
   Due: 'Due',
   Cancelled: 'Cancelled',
+  'Done date': 'Done date',
+  'Cancelled date': 'Cancelled date',
   Recurrence: 'Recurrence',
   'Depends on': 'Depends on',
   ID: 'ID',
@@ -267,6 +276,7 @@ const en = {
   'Sort by date': 'Sort by date',
   'Sort by tags': 'Sort by tags',
   'Sort by': 'Sort by',
+  'Sort by {{field}}': 'Sort by {{field}}',
 
   // components/helpers/renderMarkdown.ts
   'Unable to find': 'Unable to find',

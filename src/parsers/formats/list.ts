@@ -17,10 +17,16 @@ import {
 } from 'src/components/types';
 import { laneTitleWithMaxItems } from 'src/helpers';
 import { defaultSort } from 'src/helpers/util';
-import { t } from 'src/lang/helpers';
 import { visit } from 'unist-util-visit';
 
-import { archiveString, completeString, settingsToCodeblock } from '../common';
+import {
+  archiveHeading,
+  archiveString,
+  completeString,
+  isArchiveHeading,
+  isCompleteMarker,
+  settingsToCodeblock,
+} from '../common';
 import { DateNode, FileNode, TimeNode, ValueNode } from '../extensions/types';
 import {
   ContentBoundary,
@@ -227,14 +233,25 @@ export function listItemToItemData(stateManager: StateManager, md: string, item:
   return itemData;
 }
 
-function isArchiveLane(child: Content, children: Content[], currentIndex: number) {
-  if (child.type !== 'heading' || toString(child, { includeImageAlt: false }) !== t('Archive')) {
+function isArchiveLane(child: Content, children: Content[], currentIndex: number, md: string) {
+  if (
+    child.type !== 'heading' ||
+    child.depth !== 2 ||
+    !isArchiveHeading(toString(child, { includeImageAlt: false }))
+  ) {
     return false;
   }
 
   const prev = getPrevSibling(children, currentIndex);
+  const start = prev?.position?.start.offset;
+  const end = prev?.position?.end.offset;
 
-  return prev && prev.type === 'thematicBreak';
+  return (
+    prev?.type === 'thematicBreak' &&
+    start !== undefined &&
+    end !== undefined &&
+    md.slice(start, end).trim() === archiveString
+  );
 }
 
 export function astToUnhydratedBoard(
@@ -248,7 +265,7 @@ export function astToUnhydratedBoard(
   const archive: Item[] = [];
   root.children.forEach((child, index) => {
     if (child.type === 'heading') {
-      const isArchive = isArchiveLane(child, root.children, index);
+      const isArchive = isArchiveLane(child, root.children, index, md);
       const headingBoundary = getNodeContentBoundary(child as Parent);
       const title = getStringFromBoundary(md, headingBoundary);
 
@@ -264,7 +281,14 @@ export function astToUnhydratedBoard(
             return false;
           }
 
-          if (childStr === t('Complete')) {
+          const marker = child.children[0];
+          if (
+            child.children.length === 1 &&
+            marker.type === 'strong' &&
+            marker.children.length === 1 &&
+            marker.children[0].type === 'text' &&
+            isCompleteMarker(marker.children[0].value)
+          ) {
             shouldMarkItemsComplete = true;
             return true;
           }
@@ -428,7 +452,7 @@ function laneToMd(lane: Lane) {
 
 function archiveToMd(archive: Item[]) {
   if (archive.length) {
-    const lines: string[] = [archiveString, '', `## ${t('Archive')}`, ''];
+    const lines: string[] = [archiveString, '', `## ${archiveHeading}`, ''];
 
     archive.forEach((item) => {
       lines.push(itemToMd(item));

@@ -130,6 +130,8 @@ const lang: Partial<Lang> = {
   'After now': 'После текущего момента',
   'Before now': 'До текущего момента',
   'Between now and': 'Между сейчас и',
+  After: 'После текущего момента',
+  Before: 'До текущего момента',
   'Display date colors': 'Показывать цвета даты',
   'Set colors for dates displayed in cards based on the rules below.':
     'Установить цвета для даты, отображаемой под карточкой, базируясь на правилах ниже',

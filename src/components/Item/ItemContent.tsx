@@ -20,7 +20,7 @@ import {
   MarkdownRenderer,
 } from '../MarkdownRenderer/MarkdownRenderer';
 import { KanbanContext, SearchContext } from '../context';
-import { c, useGetDateColorFn, useGetTagColorFn } from '../helpers';
+import { c, normalizeTag, useGetDateColorFn, useGetTagColorFn } from '../helpers';
 import { EditState, EditingState, Item, isEditing } from '../types';
 import { DateAndTime, RelativeDate } from './DateAndTime';
 import { InlineMetadata } from './InlineMetadata';
@@ -136,12 +136,36 @@ export function Tags({
   const getTagColor = useGetTagColorFn(stateManager);
   const search = useContext(SearchContext);
   const shouldShow = stateManager.useSetting('move-tags') || alwaysShow;
+  const tagSortOrder = stateManager.useSetting('tag-sort');
 
   if (!tags.length || !shouldShow) return null;
 
+  const sortedTags = useMemo(() => {
+    if (!tagSortOrder?.length) return tags;
+
+    const order = new Map<string, number>();
+    tagSortOrder.forEach((sort, i) => {
+      order.set(normalizeTag(sort.tag), i);
+    });
+
+    return tags
+      .map((tag, i) => ({ tag, i }))
+      .sort((a, b) => {
+        const aOrder = order.get(normalizeTag(a.tag));
+        const bOrder = order.get(normalizeTag(b.tag));
+
+        if (aOrder === undefined && bOrder === undefined) return a.i - b.i;
+        if (aOrder === undefined) return 1;
+        if (bOrder === undefined) return -1;
+
+        return aOrder - bOrder;
+      })
+      .map((entry) => entry.tag);
+  }, [tags, tagSortOrder]);
+
   return (
     <div className={c('item-tags')}>
-      {tags.map((tag, i) => {
+      {sortedTags.map((tag, i) => {
         const tagColor = getTagColor(tag);
 
         return (

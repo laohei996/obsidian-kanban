@@ -1,12 +1,13 @@
 {
   "name": "obsidian-kanban",
-  "version": "2.0.52-beta.1",
+  "version": "2.0.52-beta.6",
   "description": "This is a sample plugin for Obsidian (https://obsidian.md)",
   "main": "main.js",
   "scripts": {
     "typecheck": "tsc --noemit",
+    "i18n:check": "node scripts/check-i18n.mjs",
     "dev": "node esbuild.config.mjs",
-    "build": "node esbuild.config.mjs production",
+    "build": "yarn i18n:check && node esbuild.config.mjs production",
     "lint": "eslint ./src/**/*.{ts,tsx}",
     "lint:fix": "eslint ./src/**/*.{ts,tsx} --fix",
     "prettier": "prettier --write \"./src/**/*.{ts,tsx}\"",

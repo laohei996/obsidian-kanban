@@ -14,6 +14,22 @@ import { EditState, isEditing } from '../types';
 import { datePlugins, stateManagerField } from './dateWidget';
 import { matchDateTrigger, matchTimeTrigger } from './suggest';
 
+const TOUCH_CLICK_SUPPRESSION_MS = 750;
+const TOUCH_MOVE_TOLERANCE_PX = 10;
+
+function getTouch(touches: TouchList, identifier: number) {
+  for (let i = 0; i < touches.length; i++) {
+    const touch = touches.item(i);
+    if (touch?.identifier === identifier) return touch;
+  }
+}
+
+function hasTouchMoved(touch: Touch, startX: number, startY: number) {
+  return (
+    Math.hypot(touch.clientX - startX, touch.clientY - startY) > TOUCH_MOVE_TOLERANCE_PX
+  );
+}
+
 interface MarkdownEditorProps {
   editorRef?: MutableRefObject<EditorView>;
   editState?: EditState;
@@ -110,6 +126,13 @@ export function MarkdownEditor({
   const { view, stateManager } = useContext(KanbanContext);
   const elRef = useRef<HTMLDivElement>();
   const internalRef = useRef<EditorView>();
+  const lastTouchSubmitRef = useRef(Number.NEGATIVE_INFINITY);
+  const submitTouchRef = useRef<{
+    identifier: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  }>();
 
   useEffect(() => {
     class Editor extends view.plugin.MarkdownEditor {
@@ -146,6 +169,11 @@ export function MarkdownEditor({
                 }
 
                 evt.win.setTimeout(() => {
+                  // Skip if the editor was torn down before this deferred
+                  // assignment ran, otherwise a stale controller would be
+                  // re-registered as the workspace editor.
+                  if (view.activeEditor !== this.owner) return;
+
                   this.app.workspace.activeEditor = this.owner;
                   if (Platform.isMobile) {
                     this.app.mobileToolbar.update();
@@ -158,7 +186,7 @@ export function MarkdownEditor({
                   view.contentEl.removeClass('is-mobile-editing');
                   this.app.mobileToolbar.update();
                 }
-                return true;
+                return false;
               },
             })
           )
@@ -238,28 +266,71 @@ export function MarkdownEditor({
       });
     }
 
+    const editorWindow = cm.dom.win;
+    let isMounted = true;
+    let toolbarFrame: number | null = null;
+    let scrollFrame: number | null = null;
+
+    const cancelPendingScroll = () => {
+      if (toolbarFrame !== null) {
+        editorWindow.cancelAnimationFrame(toolbarFrame);
+        toolbarFrame = null;
+      }
+      if (scrollFrame !== null) {
+        editorWindow.cancelAnimationFrame(scrollFrame);
+        scrollFrame = null;
+      }
+    };
+
     const onShow = () => {
-      elRef.current.scrollIntoView({ block: 'end' });
+      cancelPendingScroll();
+      toolbarFrame = editorWindow.requestAnimationFrame(() => {
+        toolbarFrame = null;
+        if (!isMounted) return;
+
+        (app as any).mobileToolbar.update();
+        scrollFrame = editorWindow.requestAnimationFrame(() => {
+          scrollFrame = null;
+          if (!isMounted) return;
+
+          const editorEl = elRef.current;
+          if (!editorEl) return;
+
+          (editorEl.parentElement ?? editorEl).scrollIntoView({
+            block: 'end',
+            inline: 'nearest',
+          });
+        });
+      });
     };
 
     if (Platform.isMobile) {
-      cm.dom.win.addEventListener('keyboardDidShow', onShow);
+      editorWindow.addEventListener('keyboardDidShow', onShow);
     }
 
     return () => {
+      isMounted = false;
       if (Platform.isMobile) {
-        cm.dom.win.removeEventListener('keyboardDidShow', onShow);
+        editorWindow.removeEventListener('keyboardDidShow', onShow);
+      }
+      cancelPendingScroll();
 
-        if (view.activeEditor === controller) {
-          view.activeEditor = null;
-        }
+      // Release the editor controller overrides on every platform. On desktop
+      // the board's internal controller would otherwise stay registered as the
+      // workspace editor after the card editor is torn down, breaking editor
+      // commands (e.g. follow-link, move-line) in Markdown notes afterwards.
+      if (view.activeEditor === controller) {
+        view.activeEditor = null;
+      }
 
-        if (app.workspace.activeEditor === controller) {
-          app.workspace.activeEditor = null;
+      if (app.workspace.activeEditor === controller) {
+        app.workspace.activeEditor = null;
+        if (Platform.isMobile) {
           (app as any).mobileToolbar.update();
           view.contentEl.removeClass('is-mobile-editing');
         }
       }
+
       view.plugin.removeChild(editor);
       internalRef.current = null;
       if (editorRef) editorRef.current = null;
@@ -269,12 +340,93 @@ export function MarkdownEditor({
   const cls = ['cm-table-widget'];
   if (className) cls.push(className);
 
+  const submit = () => {
+    const cm = internalRef.current;
+    if (!cm) return;
+
+    (view.app.workspace as any).editorSuggest?.close();
+    onSubmit(cm);
+  };
+
   return (
     <>
       <div className={classcat(cls)} ref={elRef}></div>
       {Platform.isMobile && (
         <button
-          onClick={() => onSubmit(internalRef.current)}
+          type="button"
+          onPointerDown={(e) => e.preventDefault()}
+          onTouchStart={(e) => {
+            if (e.touches.length !== 1) {
+              submitTouchRef.current = undefined;
+              return;
+            }
+
+            const touch = e.touches.item(0);
+            if (!touch) {
+              submitTouchRef.current = undefined;
+              return;
+            }
+
+            submitTouchRef.current = {
+              identifier: touch.identifier,
+              startX: touch.clientX,
+              startY: touch.clientY,
+              moved: false,
+            };
+          }}
+          onTouchMove={(e) => {
+            const selection = submitTouchRef.current;
+            if (!selection) return;
+            if (e.touches.length !== 1) {
+              submitTouchRef.current = undefined;
+              return;
+            }
+
+            const touch = getTouch(e.touches, selection.identifier);
+            if (!touch) {
+              submitTouchRef.current = undefined;
+              return;
+            }
+
+            if (hasTouchMoved(touch, selection.startX, selection.startY)) {
+              selection.moved = true;
+            }
+          }}
+          onTouchCancel={() => {
+            submitTouchRef.current = undefined;
+          }}
+          onTouchEnd={(e) => {
+            const selection = submitTouchRef.current;
+            submitTouchRef.current = undefined;
+            if (
+              !selection ||
+              selection.moved ||
+              e.touches.length !== 0 ||
+              e.changedTouches.length !== 1
+            ) {
+              return;
+            }
+
+            const touch = getTouch(e.changedTouches, selection.identifier);
+            if (!touch || hasTouchMoved(touch, selection.startX, selection.startY)) return;
+
+            const button = e.currentTarget;
+            const releaseTarget = button.ownerDocument.elementFromPoint(
+              touch.clientX,
+              touch.clientY
+            );
+            if (!releaseTarget || !button.contains(releaseTarget)) return;
+
+            e.preventDefault();
+            lastTouchSubmitRef.current = e.timeStamp;
+            submit();
+          }}
+          onClick={(e) => {
+            const elapsed = e.timeStamp - lastTouchSubmitRef.current;
+            if (e.detail !== 0 && elapsed >= 0 && elapsed <= TOUCH_CLICK_SUPPRESSION_MS) return;
+
+            submit();
+          }}
           className={classcat([c('item-submit-button'), 'mod-cta'])}
         >
           {t('Submit')}
