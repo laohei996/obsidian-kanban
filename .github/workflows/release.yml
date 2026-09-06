@@ -4,20 +4,33 @@ on:
   push:
     tags:
       - '[0-9]*.[0-9]*.[0-9]*'
+  pull_request:
+    branches: [main]
 
 permissions:
-  contents: write
+  contents: read
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  build:
+  preflight:
+    name: Release preflight
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
+    outputs:
+      release_tag: ${{ steps.metadata.outputs.release_tag }}
+      checksums_sha256: ${{ steps.assets.outputs.checksums_sha256 }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
     steps:
-      - name: Check out release tag
-        uses: actions/checkout@v5
+      - name: Check out candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Use Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '24.x'
 
@@ -25,64 +38,143 @@ jobs:
         run: npm install --global yarn@1.22.22
 
       - name: Install dependencies
-        run: |
-          yarn --version
-          yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile --non-interactive
 
       - name: Validate release metadata
+        id: metadata
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          node <<'NODE'
-          const fs = require('fs');
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { validateReleaseVersions } from './scripts/validate-versions.mjs';
 
-          const tag = process.env.RELEASE_TAG;
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
           const versions = JSON.parse(fs.readFileSync('versions.json', 'utf8'));
-
-          const fail = (message) => {
-            console.error(message);
-            process.exit(1);
-          };
-
-          if (pkg.version !== tag) {
-            fail(`package.json version ${pkg.version} does not match tag ${tag}`);
+          const isCandidate = process.env.EVENT_NAME === 'pull_request';
+          if (!isCandidate && !(process.env.EVENT_NAME === 'push' && process.env.REF_TYPE === 'tag')) {
+            throw new Error('Expected a pull request or tag push');
           }
-          if (manifest.version !== tag) {
-            fail(`manifest.json version ${manifest.version} does not match tag ${tag}`);
-          }
-          if (!Object.prototype.hasOwnProperty.call(versions, tag)) {
-            fail(`versions.json has no entry for ${tag}`);
-          }
-          if (versions[tag] !== manifest.minAppVersion) {
-            fail(
-              `versions.json maps ${tag} to ${versions[tag]}, expected ${manifest.minAppVersion}`
-            );
-          }
+          const tag = isCandidate ? manifest.version : process.env.RELEASE_TAG;
+          validateReleaseVersions(pkg, manifest, versions, tag);
+          console.log(`Validated ${isCandidate ? 'candidate' : 'release'} tag: ${tag}`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_tag=${tag}\n`);
           NODE
 
       - name: Typecheck
         run: yarn typecheck
 
+      - name: Lint all source files
+        run: yarn lint
+
+      - name: Test real product behavior
+        run: yarn test
+
       - name: Build plugin
         run: yarn build
 
-      - name: Verify release assets
+      - name: Verify and stage release inputs
+        id: assets
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
+          OUTPUT_DIR: ${{ runner.temp }}/kanban-release
         run: |
-          test -s main.js
-          test -s manifest.json
-          test -s styles.css
-          node -e "const m=require('./manifest.json'); if(m.version !== process.env.RELEASE_TAG) process.exit(1)"
-          shasum -a 256 main.js manifest.json styles.css
-          wc -c main.js manifest.json styles.css
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { createHash } = require('node:crypto');
+          const sha256 = (data) => createHash('sha256').update(data).digest('hex');
+          const files = ['main.js', 'manifest.json', 'styles.css', 'release-notes.md'];
+          const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+          if (manifest.version !== process.env.RELEASE_TAG) throw new Error('Built manifest version differs');
+
+          fs.mkdirSync(process.env.OUTPUT_DIR);
+          const checksums = files.map((name) => {
+            if (!fs.lstatSync(name).isFile()) throw new Error(`Not a regular release input: ${name}`);
+            const data = fs.readFileSync(name);
+            if (!data.length) throw new Error(`Empty release input: ${name}`);
+            fs.writeFileSync(path.join(process.env.OUTPUT_DIR, name), data, { flag: 'wx' });
+            console.log(`${name}: ${data.length} bytes`);
+            return `${sha256(data)}  ${name}\n`;
+          }).join('');
+          fs.writeFileSync(path.join(process.env.OUTPUT_DIR, 'SHA256SUMS.txt'), checksums, { flag: 'wx' });
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `checksums_sha256=${sha256(checksums)}\n`);
+          NODE
+
+      - name: Upload verified release inputs
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-inputs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/kanban-release/main.js
+            ${{ runner.temp }}/kanban-release/manifest.json
+            ${{ runner.temp }}/kanban-release/styles.css
+            ${{ runner.temp }}/kanban-release/release-notes.md
+            ${{ runner.temp }}/kanban-release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish release
+    needs: preflight
+    if: ${{ needs.preflight.result == 'success' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Validate preflight outputs
+        env:
+          ARTIFACT_ID: ${{ needs.preflight.outputs.artifact_id }}
+          CHECKSUMS_SHA256: ${{ needs.preflight.outputs.checksums_sha256 }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
+          EXPECTED_TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || exit 1
+          [[ "$CHECKSUMS_SHA256" =~ ^[0-9a-f]{64}$ ]] || exit 1
+          [[ -n "$RELEASE_TAG" && "$RELEASE_TAG" == "$EXPECTED_TAG" ]] || exit 1
+
+      - name: Download verified release inputs
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          artifact-ids: ${{ needs.preflight.outputs.artifact_id }}
+          path: ${{ runner.temp }}/kanban-release
+          merge-multiple: true
+
+      - name: Use Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24.x'
+
+      - name: Verify downloaded release inputs
+        working-directory: ${{ runner.temp }}/kanban-release
+        env:
+          CHECKSUMS_SHA256: ${{ needs.preflight.outputs.checksums_sha256 }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
+        run: |
+          printf '%s  SHA256SUMS.txt\n' "$CHECKSUMS_SHA256" | shasum -a 256 -c -
+          shasum -a 256 -c SHA256SUMS.txt
+          node <<'NODE'
+          const fs = require('node:fs');
+          for (const name of ['main.js', 'manifest.json', 'styles.css', 'release-notes.md']) {
+            if (!fs.lstatSync(name).isFile() || !fs.statSync(name).size) {
+              throw new Error(`Missing or empty release input: ${name}`);
+            }
+          }
+          const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+          if (manifest.version !== process.env.RELEASE_TAG) throw new Error('Downloaded manifest version differs');
+          NODE
 
       - name: Create or update GitHub release
+        working-directory: ${{ runner.temp }}/kanban-release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release edit "$RELEASE_TAG" \
@@ -98,6 +190,7 @@ jobs:
             fi
 
             gh release create "$RELEASE_TAG" \
+              --verify-tag \
               --title "$RELEASE_TAG" \
               --notes-file release-notes.md \
               "${prerelease[@]}" \
@@ -105,12 +198,15 @@ jobs:
           fi
 
       - name: Verify GitHub release
+        working-directory: ${{ runner.temp }}/kanban-release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
         run: |
           release_json="$(gh release view "$RELEASE_TAG" --json tagName,isPrerelease,assets)"
           RELEASE_JSON="$release_json" node <<'NODE'
+          const fs = require('node:fs');
           const release = JSON.parse(process.env.RELEASE_JSON);
           const expectedTag = process.env.RELEASE_TAG;
           const expectedPrerelease = expectedTag.includes('-beta.');
@@ -125,8 +221,8 @@ jobs:
 
           const assets = new Map(release.assets.map((asset) => [asset.name, asset.size]));
           for (const name of expectedAssets) {
-            if (!assets.has(name) || assets.get(name) <= 0) {
-              throw new Error(`Missing or empty release asset: ${name}`);
+            if (assets.get(name) !== fs.statSync(name).size) {
+              throw new Error(`Missing release asset or unexpected size: ${name}`);
             }
           }
           NODE

@@ -16,3 +16,12 @@ export function validateVersions(pkg, manifest, versions) {
     throw new Error('Inconsistent compatibility version');
   }
 }
+
+export function validateReleaseVersions(pkg, manifest, versions, tag) {
+  validateVersions(pkg, manifest, versions);
+  if (typeof tag !== 'string' || !tag) throw new Error('Release tag is required');
+  if (tag !== manifest.version) throw new Error('Release tag and manifest version differ');
+  if (!Object.prototype.hasOwnProperty.call(versions, tag)) {
+    throw new Error('Missing release compatibility entry');
+  }
+}

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { validateVersions } from '../scripts/validate-versions.mjs';
+import { validateReleaseVersions, validateVersions } from '../scripts/validate-versions.mjs';
 
 function metadata(version = '2.0.52-beta.6', minAppVersion = '1.0.0') {
   return {
@@ -74,5 +74,67 @@ describe('strict build metadata versions', () => {
     const data = metadata();
     data.versions = {};
     assert.throws(() => validate(data), /Inconsistent compatibility version/);
+  });
+});
+
+describe('release tag metadata', () => {
+  function validateRelease(data, tag) {
+    validateReleaseVersions(data.pkg, data.manifest, data.versions, tag);
+  }
+
+  for (const version of validVersions) {
+    it(`accepts an exact release tag ${JSON.stringify(version)}`, () => {
+      assert.doesNotThrow(() => validateRelease(metadata(version), version));
+    });
+  }
+
+  for (const tag of [undefined, null, '', 52]) {
+    it(`requires an explicit nonempty string tag: ${JSON.stringify(tag)}`, () => {
+      assert.throws(() => validateRelease(metadata(), tag), /Release tag is required/);
+    });
+  }
+
+  for (const tag of ['v2.0.52-beta.6', ' 2.0.52-beta.6', '2.0.52-beta.6\n', '2.0.52-beta.7']) {
+    it(`rejects a nonmatching tag ${JSON.stringify(tag)}`, () => {
+      assert.throws(() => validateRelease(metadata(), tag), /Release tag and manifest version differ/);
+    });
+  }
+
+  for (const version of invalidVersions) {
+    it(`rejects invalid metadata even when the tag agrees: ${JSON.stringify(version)}`, () => {
+      assert.throws(() => validateRelease(metadata(version), version), /Invalid plugin version/);
+    });
+  }
+
+  it('preserves the package version check', () => {
+    const data = metadata();
+    data.pkg.version = '2.0.52-beta.7';
+    assert.throws(
+      () => validateRelease(data, data.manifest.version),
+      /Package and manifest versions differ/
+    );
+  });
+
+  it('preserves the minimum app version check', () => {
+    const data = metadata('2.0.52-beta.6', 'v1.0.0');
+    assert.throws(() => validateRelease(data, data.manifest.version), /Invalid minimum app version/);
+  });
+
+  it('rejects incorrect compatibility metadata', () => {
+    const data = metadata();
+    data.versions[data.manifest.version] = '1.1.0';
+    assert.throws(() => validateRelease(data, data.manifest.version), /Inconsistent compatibility version/);
+  });
+
+  it('rejects missing compatibility metadata', () => {
+    const data = metadata();
+    data.versions = {};
+    assert.throws(() => validateRelease(data, data.manifest.version), /Inconsistent compatibility version/);
+  });
+
+  it('does not accept an inherited compatibility entry', () => {
+    const data = metadata();
+    data.versions = Object.create(data.versions);
+    assert.throws(() => validateRelease(data, data.manifest.version), /Missing release compatibility entry/);
   });
 });
