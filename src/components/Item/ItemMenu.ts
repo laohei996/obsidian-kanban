@@ -1,5 +1,5 @@
 import update from 'immutability-helper';
-import { Menu, Platform, TFile, TFolder } from 'obsidian';
+import { Menu, Notice, Platform, TFile, TFolder } from 'obsidian';
 import { Dispatch, StateUpdater, useCallback } from 'preact/hooks';
 import { StateManager } from 'src/StateManager';
 import { Path } from 'src/dnd/types';
@@ -9,6 +9,7 @@ import { t } from 'src/lang/helpers';
 import { BoardModifiers } from '../../helpers/boardModifiers';
 import { applyTemplate, escapeRegExpStr, generateInstanceId } from '../helpers';
 import { EditState, Item } from '../types';
+import { copyCardContent } from './copyCardContent';
 import {
   constructDatePicker,
   constructMenuDatePickerOnChange,
@@ -127,6 +128,18 @@ export function useItemMenu({
               const newTitleRaw = newFirstLine + remainingTitle;
 
               boardModifiers.updateItem(path, stateManager.updateItemContent(item, newTitleRaw));
+            });
+        })
+        .addItem((i) => {
+          i.setIcon('lucide-clipboard')
+            .setTitle(t('Copy card content'))
+            .onClick(async () => {
+              try {
+                await copyCardContent(item, (e.view ?? window).navigator.clipboard);
+                new Notice(t('Card content copied'));
+              } catch {
+                new Notice(t('Unable to copy card content'));
+              }
             });
         })
         .addItem((i) => {

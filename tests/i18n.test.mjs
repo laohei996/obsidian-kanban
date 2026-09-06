@@ -109,6 +109,20 @@ describe('live locale selection and real translations', { concurrency: false }, 
     assert.equal(t('Sort by {{field}}', { field: '优先级' }), '按优先级排序');
   });
 
+  for (const locale of ['en', 'zh-cn', 'hi']) {
+    it(`translates card content copy actions and feedback in ${locale}`, () => {
+      language = locale;
+      for (const [key, chinese] of [
+        ['Copy card content', '复制卡片内容'],
+        ['Card content copied', '已复制卡片内容'],
+        ['Unable to copy card content', '无法复制卡片内容'],
+      ]) {
+        assert.equal(t(key), locale === 'zh-cn' ? chinese : key);
+      }
+      assert.equal(getCurrentLocaleCode(), locale);
+    });
+  }
+
   it('inserts dollar replacement tokens literally instead of expanding matched text', () => {
     assert.equal(t('Sort by {{field}}', { field: '$&' }), 'Sort by $&');
     assert.equal(t('Sort by {{field}}', { field: "$$ $` $'" }), "Sort by $$ $` $'");
