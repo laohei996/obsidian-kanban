@@ -51,17 +51,29 @@ ESLint 使用独立的 `tsconfig.eslint.json` 递归纳入全部 `src/**/*.ts` �
 
 ## 当前覆盖
 
-当前 99 个用例直接导入实际实现，不复制业务算法或词典：64 个产品行为用例，以及 35 个构建元数据用例。
+当前 128 个用例直接导入实际实现，不复制业务算法或词典：64 个产品行为用例，以及 64 个构建/发布元数据用例。
 
 - **Markdown 基础行为**：真实 task-list 扩展，保留空格、x、X、斜杠和减号状态字符，嵌套与非任务内容；换行、缩进、首行 block ID 和列表上限解析。
 - **内联元数据**：Dataview/Tasks 插件开关、嵌套、转义、未闭合字段、字段位置/顺序、Tasks 日期提取门槛。日期提取不等于日期合法性或格式化校验。
 - **本地化运行时**：语言别名/区域回退、未知语言、真实空 Hindi 词典的英文 fallback、同模块语言切换、特殊字符与数字插值，以及复制正文菜单/提示的英文、简中和缺译回退。与静态词典检查互补。
 - **复制卡片正文**：实际 helper 选择 `titleRaw` 而非显示标题，保留多行、Markdown、日期/标签及首尾空白，不附加外层任务标记或卡片 block ID，不修改输入对象；验证即时单次调用、方法 receiver、API 不可用、同步异常、异步拒绝和完成时序。
-- **构建元数据**：插件版本与最低 Obsidian 版本必须是规范的 SemVer，允许合法预发布和构建标识，但拒绝前导 `v`、空白、前导零和非法标识；即使各文件填写一致，也不能放行无效版本。继续检查 package/manifest 版本及兼容性记录的一致性。
+- **构建元数据**：插件版本与最低 Obsidian 版本必须是规范的 SemVer，允许合法预发布和构建标识，但拒绝前导 `v`、空白、前导零和非法标识；即使各文件填写一致，也不能放行无效版本。继续检查 package/manifest 版本及兼容性记录的一致性。发布校验复用这些规则，另要求显式非空 tag 与版本精确匹配，兼容性项必须是自有属性；拒绝缺 tag、前导 `v`、空白、不匹配和继承的兼容性项。
 
 测试只模拟所需的 `app` 配置/插件启用状态、`window.localStorage.getItem` 和窄 `clipboard.writeText` 边界；不引入完整 Obsidian 或 DOM 替身。复制 helper 测试不证明实际菜单接线、系统剪贴板权限、成功/失败提示或真机粘贴正常，这些仍需真实宿主验收。
 
 **暂不覆盖**完整 Markdown↔Board 读写、卡片编辑/拖动后的数据保留、Moment 日期逻辑、真实 Vault 写回、CodeMirror 焦点、日期弹窗和原生软键盘。这些检查不能被宣传为全部功能回归，也不能证明某一 CSS/移动交互修复已经通过真机验收。
+
+## 发布前预检
+
+`.github/workflows/release.yml` 在 tag push 和面向 main 的 PR 上运行同一个 **Release preflight**：冻结安装 → 版本/tag 校验 → typecheck → lint → 回归测试 → build（包含 i18n）→ 资产校验。PR 明确使用 manifest 版本作为候选 tag；真实 tag push 必须使用实际 ref，缺失或不匹配不兜底。
+
+预检只有 `contents: read`。**Publish release** 必须依赖预检成功，并且仅允许 tag push；只有该 job 获得 `contents: write`。PR 的发布 job 应为 **skipped**，不会创建或修改 Release。原有 `CI / Required` 名称及依赖不变；它不包含这个新预检，人工合并前也要确认 Release preflight 成功。
+
+预检 artifact 包含三个插件文件、现有 `release-notes.md` 和 `SHA256SUMS.txt`，保留 7 天。发布 job 按生产者输出的 artifact ID 下载，不 checkout、不安装项目依赖、不重新构建；先核对 job output 中的清单摘要，再核对四个输入文件。仅重跑失败的发布 job 时仍取原预检的 artifact；缺失、过期或哈希不匹配直接失败，需重跑完整工作流，不寻找其他运行的包。正式 Release 附件仍只上传 `main.js`、`manifest.json`、`styles.css`。
+
+保持当前 tag 命名和 beta 分类方式，create 使用 `--verify-tag`，不会自动补建不存在的 tag。用户仍需手动审阅、合并并明确批准发版；本工作流不自动创建 tag。
+
+PR 可以实际验证同一套预检、检查 artifact，并确认发布 job 被跳过；**不能据此声称真实 tag push、发布 job 重试或 Release API 写入已端到端验证**。这些留到获准的实际发布。发布元数据负例属于自动测试；工作流顺序、权限、资产缺失/篡改等检查不计入上述产品/元数据测试数量。
 
 ## 添加回归用例
 
