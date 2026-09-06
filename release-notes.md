@@ -1,12 +1,12 @@
-# 🧩 Kanban 2.0.52-beta.6
+# 🧩 Kanban 2.0.52-beta.7
 
 ## 🇨🇳 中文
 
 ### 🛠️ 修复与改进
 
-- 📱 优化移动端卡片和列表编辑体验，修复键盘遮挡、误触提交及点按外部保存问题。
-- 📅 提升 iOS 日期选择稳定性，修复日期建议偶发卡住、相邻月份选择失败和连续点按失效问题。
-- 🌐 完善简体中文翻译，并新增本地化完整性检查。
+- 📋 卡片菜单新增“复制卡片内容”，保留正文 Markdown、标签和日期，不附加外层任务标记或卡片 block ID，并提供成功／失败提示。
+- 📱 修复移动端编辑时重复补偿键盘高度、导致输入框滚出屏幕顶部的问题。
+- ✅ 新增 PR 自动检查和回归测试；发布前统一校验版本、构建与产物，并隔离发布写权限。
 
 ### ⚠️ Beta 提示
 
@@ -16,10 +16,10 @@
 
 ### 🛠️ Fixes and improvements
 
-- 📱 Improve mobile card and list editing, including keyboard visibility, accidental submissions, and outside-tap saving.
-- 📅 Improve iOS date selection and fix occasional stuck suggestions, adjacent-month selection failures, and missed follow-up taps.
-- 🌐 Complete the Simplified Chinese translation and add localization consistency checks.
+- 📋 Add “Copy card content” to the card menu, preserving body Markdown, tags, and dates without adding the outer task marker or card block ID, with success and failure notices.
+- 📱 Fix duplicate keyboard-height compensation that could scroll the editing field above the top of the screen on mobile.
+- ✅ Add automated PR checks and regression tests, with shared version, build, and asset validation before publishing and isolated release write permissions.
 
 ### ⚠️ Beta notice
 
-This fork replaces the community Kanban plugin in place. Test it in a disposable vault before installing through BRAT.
+This fork replaces the community Kanban plugin in place. Test it in a test vault before installing through BRAT.
