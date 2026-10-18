@@ -88,7 +88,10 @@ export class ScrollManager {
       },
       {
         root: scrollEl,
-        threshold: 0.1,
+        // Any non-zero threshold makes elements taller than 1/threshold times the
+        // scroll container permanently non-intersecting, which leaves their card
+        // content blank (e.g. very tall lanes or cards in list view).
+        threshold: 0,
       }
     );
 
